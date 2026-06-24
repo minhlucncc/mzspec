@@ -23,7 +23,7 @@ git clone https://github.com/minhlucncc/mzspec && bash mzspec/install.sh --dest 
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--with <a,b,c>` | `core,gates,skills` | components to install (`core`, `gates`, `skills`) |
+| `--with <a,b,c>` | all | components to install (`core`, `gates`, `skills`, `tasks`, `templates`) |
 | `--ref <tag>` | `main` | mzspec git ref to pin |
 | `--dest <dir>` | cwd | target project root |
 | `--force` | off | overwrite already-vendored files (per file) |
@@ -35,6 +35,9 @@ git clone https://github.com/minhlucncc/mzspec && bash mzspec/install.sh --dest 
 2. Fetches the pinned mzspec (or uses the local checkout if you run it from one).
 3. Vendors the selected components:
    - `core` → `.claude/workflows/` (+ `lib/`) and `.claude/commands/opsx/`
+   - `tasks` → `task` workflow + `lib/task-sources/` + `/opsx:task-*` commands
+   - `templates` → `template` workflow + `lib/templates.js` + `/opsx:template-*` commands +
+     `.claude/mzspec-templates/` (contract) + starter playbook(s) into `openspec/templates/`
    - `skills` → `.claude/skills/`
    - `gates` → `.claude/mzspec-gates/` (the contract + starters)
 4. Writes `mzspec.config.json` from the template **only if absent** (never clobbers yours), plus
@@ -48,4 +51,6 @@ many files were installed vs left in place.
 
 1. Edit `mzspec.config.json` — set `toolchains.<tc>.dirs` / `gates`, `gatesDir`, `customGates`.
 2. Add your gate scripts under your `gatesDir` (see `.claude/mzspec-gates/CONTRACT.md`).
-3. Drive the pipeline: `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship-plan` → `/opsx:ship-code`.
+3. (optional) Capture a recurring flow with `/opsx:template-create` — planning consults
+   `openspec/templates/`, and no template is fine (see [templates.md](templates.md)).
+4. Drive the pipeline: `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship-plan` → `/opsx:ship-code`.

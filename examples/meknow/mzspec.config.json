@@ -88,6 +88,7 @@
     }
   },
   "gatesDir": "benchmarks/gates",
+  "templatesDir": "openspec/templates",
   "customGates": [],
   "taskSources": [
     { "name": "local", "type": "local-folder", "enabled": true, "config": { "path": ".tasks" } },

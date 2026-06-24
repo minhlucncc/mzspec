@@ -84,6 +84,7 @@
       }
     },
     "gatesDir": { "type": "string", "description": "Where this project's own gate scripts live (see the gate plugin contract)." },
+    "templatesDir": { "type": "string", "description": "Where this project's optional, skill-like task-planning templates live (default openspec/templates). Each is a <name>/TEMPLATE.md planning guide consulted during planning; see the templates contract." },
     "customGates": {
       "type": "array",
       "description": "Project gate plugins. Each runs when its `when` matches the diff.",

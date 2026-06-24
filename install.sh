@@ -8,7 +8,7 @@
 #   bash install.sh [options]                 # when run from a clone
 #
 # Options:
-#   --with <a,b,c>   Components to install: core,gates,skills,tasks (default: all)
+#   --with <a,b,c>   Components to install: core,gates,skills,tasks,templates (default: all)
 #   --ref <tag>      mzspec git ref to install (default: main)
 #   --dest <dir>     Target project root (default: current directory)
 #   --force          Overwrite already-vendored files (default: skip existing)
@@ -18,7 +18,7 @@ set -euo pipefail
 
 REPO_URL="${MZSPEC_REPO_URL:-https://github.com/minhlucncc/mzspec.git}"
 RAW_BASE="${MZSPEC_RAW_BASE:-https://raw.githubusercontent.com/minhlucncc/mzspec}"
-WITH="core,gates,skills,tasks"
+WITH="core,gates,skills,tasks,templates"
 REF="main"
 DEST="$(pwd)"
 FORCE=0
@@ -111,12 +111,16 @@ vendor_dir() { # vendor_dir <src-dir> <dest-dir> [exclude-regex] — file by fil
 # The task feature (task.js workflow, lib/task-sources, task-*.md commands) is a
 # separate `tasks` component, so `core` excludes it.
 TASK_EXCL='(^|/)task\.js$|(^|/)task-sources(/|$)|(^|/)task-(pull|push|log|create|list)\.md$'
+# The templates feature (template.js workflow, lib/templates.js, template-*.md commands)
+# is a separate `templates` component, so `core` excludes it too.
+TEMPLATE_EXCL='(^|/)template\.js$|(^|/)templates(\.test)?\.js$|(^|/)template-(create|update|remove|list)\.md$'
+CORE_EXCL="$TASK_EXCL|$TEMPLATE_EXCL"
 
 if has core; then
   log "installing core (workflows + opsx commands)"
-  vendor_dir "$SRC/core/workflows" "$DEST/.claude/workflows"      "$TASK_EXCL"
-  vendor_dir "$SRC/lib"            "$DEST/.claude/workflows/lib"   "$TASK_EXCL"
-  vendor_dir "$SRC/core/commands"  "$DEST/.claude/commands"        "$TASK_EXCL"
+  vendor_dir "$SRC/core/workflows" "$DEST/.claude/workflows"      "$CORE_EXCL"
+  vendor_dir "$SRC/lib"            "$DEST/.claude/workflows/lib"   "$CORE_EXCL"
+  vendor_dir "$SRC/core/commands"  "$DEST/.claude/commands"        "$CORE_EXCL"
 fi
 
 if has tasks; then
@@ -126,6 +130,18 @@ if has tasks; then
   for v in task-create task-list task-pull task-push task-log; do
     vendor "$SRC/core/commands/opsx/$v.md" "$DEST/.claude/commands/opsx/$v.md"
   done
+fi
+
+if has templates; then
+  log "installing task-planning templates (template workflow + lib + template-*.md + contract + starters)"
+  vendor      "$SRC/core/workflows/template.js"          "$DEST/.claude/workflows/template.js"
+  vendor      "$SRC/lib/templates.js"                    "$DEST/.claude/workflows/lib/templates.js"
+  for v in template-create template-update template-remove template-list; do
+    vendor "$SRC/core/commands/opsx/$v.md" "$DEST/.claude/commands/opsx/$v.md"
+  done
+  vendor      "$SRC/extensions/templates/CONTRACT.md"    "$DEST/.claude/mzspec-templates/CONTRACT.md"
+  # Starter playbooks are project-owned content → land in openspec/templates/ (skip if present).
+  vendor_dir  "$SRC/extensions/templates/starters"       "$DEST/openspec/templates"
 fi
 
 if has skills; then
@@ -167,4 +183,5 @@ log "  0. read SDD_GUIDE.md — the task→spec→ship workflow in 2 minutes"
 log "  1. edit mzspec.config.json — set toolchains.<tc>.dirs/gates, gatesDir, customGates, taskSources"
 log "  2. add your gate scripts under your gatesDir (see .claude/mzspec-gates/CONTRACT.md)"
 log "  3. (tasks) author a .tasks/<id>/task.md or enable a gh/mello source, then /opsx:task-pull"
-log "  4. run the pipeline:  /opsx:task-pull  →  /opsx:spec  →  /opsx:spec-pr  →  /opsx:ship-plan  →  /opsx:ship-code"
+log "  4. (templates, optional) capture a recurring flow with /opsx:template-create — planning checks openspec/templates/, none is fine"
+log "  5. run the pipeline:  /opsx:task-pull  →  /opsx:spec  →  /opsx:spec-pr  →  /opsx:ship-plan  →  /opsx:ship-code"
