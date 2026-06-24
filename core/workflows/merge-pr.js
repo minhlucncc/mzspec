@@ -1,12 +1,13 @@
 export const meta = {
   name: 'merge-pr',
   description:
-    'Team-lead PR merge workflow. Given an OpenSpec change slug or a PR URL, it preflights (PR status, linked issues, changelog), optionally updates the title/body/closing keywords, merges the PR via GitHub, closes linked issues, posts a cross-reference comment on each closed issue — then reports the merge SHA and next steps. Never creates a local merge — everything happens via the GitHub API. Honors dryRun (show what it would do; no merge/close).',
+    'Team-lead PR merge workflow. Given an OpenSpec change slug or a PR URL, it preflights (PR status, linked issues, changelog), optionally updates the title/body/closing keywords, merges the PR via GitHub, closes linked issues, posts a cross-reference comment on each closed issue — then archives the OpenSpec change locally (if applicable). Never creates a local merge — everything happens via the GitHub API. Honors dryRun (show what it would do; no merge/close/archive).',
   phases: [
     { title: 'Preflight', detail: 'find PR, check status, detect linked issues, check changelog' },
     { title: 'Prepare',   detail: 'update PR title/body/closing keywords if needed' },
     { title: 'Merge',     detail: 'merge PR via GitHub API, close issues, post linking comments' },
-    { title: 'Summary',   detail: 'report merge SHA, closed issues, PR URL' },
+    { title: 'Archive',   detail: 'archive the OpenSpec change locally after merge' },
+    { title: 'Summary',   detail: 'report merge SHA, closed issues, PR URL, archive status' },
   ],
 }
 
@@ -22,6 +23,7 @@ const body = A.body || ''         // override/append PR body (empty = keep exist
 const repo = A.repo || ''         // optional: "owner/repo" for cross-repo PRs (auto-detected from URL)
 const closes = A.closes || ''     // explicit "Closes #N" to add (empty = auto-detect from existing PR)
 const base = A.base || 'main'
+const skipArchive = !!A.skipArchive  // skip the OpenSpec archive step after merge
 const reserve = A.reserveTokens || 20000
 
 if (!change && !pr) {
@@ -206,7 +208,58 @@ const mergeResult = await agent(
   },
 )
 
-// ---------------------------------------------------------------- Phase 4: Summary
+// ---------------------------------------------------------------- Phase 4: Archive (local OpenSpec archive)
+phase('Archive')
+let archived = false
+let archiveReason = ''
+
+if (!mergeResult || !mergeResult.merged) {
+  // Fall through to Summary — merge failure is handled there
+} else if (change && !skipArchive) {
+  if (budget && budget.total && budget.remaining() < reserve) {
+    archiveReason = 'budget reserve reached — skip archive'
+  } else {
+    const archiveResult = await agent(
+      [
+        `Archive the completed OpenSpec change "${change}" locally after the successful merge of PR #${prNumber}.`,
+        `This removes the change from the active project and moves it to the archive.`,
+        `Steps:`,
+        `1. Make sure local main is up to date: git checkout ${base} && git pull --ff-only 2>/dev/null || true`,
+        `2. Check if openspec CLI is available: which openspec 2>/dev/null`,
+        `   - If available: openspec archive "${change}"`,
+        `   - If not: manually archive:`,
+        `     TODAY=$(date +%Y-%m-%d)`,
+        `     mkdir -p openspec/changes/archive`,
+        `     mv openspec/changes/"${change}" "openspec/changes/archive/${'${TODAY}'}-${change}"`,
+        `     git add openspec/changes/`,
+        `     git commit -m "chore(${change}): archive completed change"`,
+        `3. git push origin ${base}`,
+        `Return { archived: true } on success, or { archived: false, reason: "<message>" } on failure.`,
+        `NOTE: If git is not available or the directory doesn't have openspec/changes, return archived=false with reason.`,
+      ].join('\n'),
+      {
+        label: 'archive',
+        phase: 'Archive',
+        schema: {
+          type: 'object', additionalProperties: false,
+          required: ['archived'],
+          properties: { archived: { type: 'boolean' }, reason: { type: 'string' }, commitSha: { type: 'string' } },
+        },
+        agentType: 'general-purpose',
+      },
+    )
+    archived = !!(archiveResult && archiveResult.archived)
+    if (archiveResult && archiveResult.reason) archiveReason = archiveResult.reason
+    if (archived) log(`Archived change "${change}"`)
+    else log(`Archive skipped or failed: ${archiveReason || 'unknown'}`)
+  }
+} else if (change && skipArchive) {
+  archiveReason = 'skipped via --skip-archive'
+} else {
+  archiveReason = 'not an OpenSpec change (no --change)'
+}
+
+// ---------------------------------------------------------------- Phase 5: Summary
 phase('Summary')
 if (!mergeResult || !mergeResult.merged) {
   return {
@@ -217,6 +270,19 @@ if (!mergeResult || !mergeResult.merged) {
 }
 
 const issuesClosed = mergeResult.issuesClosed || []
+
+// Build post-merge notes
+const postMergeNotes = []
+if (change && !archived && !skipArchive) {
+  postMergeNotes.push(`- Run /opsx:archive ${change} to archive the completed change.`)
+}
+if (!pre.changelogEntry && change) {
+  postMergeNotes.push(`- Consider adding a CHANGELOG entry for ${change} if not already present.`)
+}
+if (archived) {
+  postMergeNotes.push(`- Change "${change}" archived automatically.`)
+}
+
 return {
   stage: 'done', ok: true,
   prUrl, prNumber,
@@ -225,15 +291,17 @@ return {
   headSha: pre.headSha,
   titleUpdated: needsUpdate,
   issuesClosed,
+  archived,
+  archiveReason,
   changelogPresent: !!pre.changelogEntry,
   prTitle: finalTitle,
   nextStep: [
     `✅ Merged PR #${prNumber} (${strategy}) — commit \`${mergeResult.mergeSha}\``,
     issuesClosed.length ? `   Closed issue(s): #${issuesClosed.join(', #')}` : '   No linked issues to close.',
+    archived ? `   📦 Change "${change}" archived.` : '',
     `   PR: ${prUrl}`,
     ``,
-    `**Post-merge actions for lead:**`,
-    change ? `- Run /opsx:archive ${change} to archive the completed change.` : '',
-    !pre.changelogEntry && change ? `- Consider adding a CHANGELOG entry for ${change}.` : '',
+    `**Post-merge:**`,
+    ...postMergeNotes,
   ].filter(Boolean).join('\n'),
 }
