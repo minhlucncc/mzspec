@@ -18,9 +18,14 @@ const status = A.status // optional explicit status for push
 const text = A.text // comment body for log
 const list = A.list === true
 const date = A.date // YYYY-MM-DD passed in (Date.now() unavailable in scripts)
+// create inputs:
+const prompt = A.prompt // free-text task description
+const fromChange = A.fromChange // author a task FROM this change's proposal/spec
+const fromDiff = A.fromDiff === true // author a task FROM the working git diff
+const pushTo = A.pushTo || A.to // remote source to push a (local) task onto
 
-if (!['pull', 'push', 'log'].includes(action)) {
-  throw new Error('task requires args { action: "pull"|"push"|"log", ... }; got action=' + action)
+if (!['create', 'pull', 'push', 'log'].includes(action)) {
+  throw new Error('task requires args { action: "create"|"pull"|"push"|"log", ... }; got action=' + action)
 }
 if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Unsafe date (expected YYYY-MM-DD): ' + date)
 const CLI = 'node .claude/workflows/lib/task-sources/cli.js'
@@ -47,6 +52,56 @@ const SIMPLE = {
     ok: { type: 'boolean' }, reason: { type: 'string' },
     taskId: { type: 'string' }, status: { type: 'string' }, change: { type: 'string' },
   },
+}
+
+const CREATE = {
+  type: 'object', additionalProperties: false,
+  required: ['ok', 'reason'],
+  properties: {
+    ok: { type: 'boolean' }, reason: { type: 'string' },
+    taskId: { type: 'string' }, taskTitle: { type: 'string' },
+    url: { type: 'string' }, remoteRef: { type: 'string' },
+  },
+}
+
+// ================================================================ CREATE
+if (action === 'create') {
+  phase('Resolve')
+  const draft = await agent(
+    [
+      `Draft a single backlog task, then return it. Do NOT create anything yet.`,
+      fromChange
+        ? `Source: the OpenSpec change "${fromChange}" — read openspec/changes/${fromChange}/proposal.md (and specs/*.md if present) and distill it into one actionable task.`
+        : fromDiff
+          ? `Source: the working changes — run "git diff" (and "git diff --staged"); summarize what was done/needs doing into one actionable task.`
+          : `Source: this prompt — ${JSON.stringify(prompt || '')}`,
+      `Write a concise imperative TITLE (<= 80 chars) and a BODY (the requirement / acceptance, a short paragraph or bullets). Suggest 0-3 lowercase labels.`,
+      `Return ok:true with taskTitle (put the title here) — keep the body+labels for the next phase.`,
+    ].join('\n'),
+    { schema: CREATE, label: 'task-draft', phase: 'Resolve', agentType: 'general-purpose' },
+  )
+  if (!draft || !draft.ok) return { stage: 'draft', ok: false, reason: draft ? draft.reason : 'draft agent returned null', action }
+
+  phase('Apply')
+  const made = await agent(
+    [
+      `Create the drafted task on the ${source ? `"${source}"` : 'default (first enabled)'} task source, then ${pushTo ? `also push it to the "${pushTo}" remote.` : 'stop.'} Use Bash.`,
+      `1. Create it: pipe the BODY via stdin — printf '%s' "<body>" | ${CLI} create --title ${JSON.stringify(draft.taskTitle)} [--labels a,b]${srcFlag}. Parse the returned Task JSON for id + url.`,
+      pushTo
+        ? [
+            `2. Push to remote "${pushTo}": create the remote item — printf '%s' "<body>" | ${CLI} create --title <title> --source ${pushTo} — capture its { id, url } as the remoteRef (e.g. "<type>:<id>").`,
+            `3. If the local source is a local-folder, write <task-folder>/.link.json = { "remoteRef": "<ref>", "remote": "${pushTo}", "status": "todo", "history": [] }.`,
+          ].join('\n')
+        : `2. (no --push) leave it as a local backlog item.`,
+      `Return ok, reason, taskId, taskTitle, url, and remoteRef (if pushed).`,
+    ].join('\n'),
+    { schema: CREATE, label: 'task-create', phase: 'Apply', agentType: 'general-purpose' },
+  )
+  if (!made || !made.ok) return { stage: 'apply', ok: false, reason: made ? made.reason : 'create agent returned null', action }
+  return {
+    stage: 'done', ok: true, action, taskId: made.taskId, taskTitle: made.taskTitle, url: made.url || '', remoteRef: made.remoteRef || '',
+    nextStep: `Created task ${made.taskId}${made.remoteRef ? ` (pushed → ${made.remoteRef})` : ''}. Pull it into a change with /opsx:task-pull --id ${made.taskId}, or keep authoring.`,
+  }
 }
 
 // ================================================================ PULL
@@ -98,28 +153,28 @@ if (action === 'pull') {
   }
 }
 
-// ================================================================ PUSH
+// ================================================================ PUSH (upsert: local→remote)
 if (action === 'push') {
   phase('Resolve')
   const r = await agent(
     [
-      `Push the linked change's status back to its task source. Use Bash.`,
-      A.change
-        ? `1. Read openspec/changes/${A.change}/.task-link.json for { source, type, taskId }.`
+      `Push a task to its remote backlog — UPSERT semantics (git-like). Use Bash.`,
+      `1. Resolve the task: ${A.change
+        ? `read openspec/changes/${A.change}/.task-link.json`
         : id
-          ? `1. The task id is "${id}"; determine its source from the configured task sources (or --source).`
-          : `1. Find the change for the current branch (feat/<change>) and read openspec/changes/<change>/.task-link.json for { source, type, taskId }. If none, return ok:false.`,
-      status
-        ? `2. Target status = "${status}".`
-        : `2. Derive the target status from the change's lifecycle: if archived under openspec/changes/archive → "done"; else if an open PR exists for feat/<change> (gh pr view feat/<change> --json state) → "in-review"; else if proposal.md exists → "in-progress".`,
-      `3. Apply it: ${CLI} set-status <taskId> <status>${srcFlag}.`,
-      `4. Append { at: "${date || ''}", status } to the .task-link.json history (and the local-folder .link.json if applicable).`,
-      `Return ok, reason, taskId, status, change.`,
+          ? `the task is "${id}"${source ? ` on source "${source}"` : ''}; read its .tasks/<id>/.link.json if it is a local-folder task`
+          : `find the current branch's change (feat/<change>) and read openspec/changes/<change>/.task-link.json`} → note { source, type, taskId, remoteRef? }. If nothing resolves, return ok:false.`,
+      `2. UPSERT decision:`,
+      `   a) If there is NO remoteRef yet (a local-authored task not on a remote): CREATE it on the target remote "${pushTo || '<first enabled remote (non local-folder) source>'}". Read the local task body (${CLI} get <taskId>${srcFlag}), then printf '%s' "<body>" | ${CLI} create --title "<title>" --source ${pushTo || '<remote>'}. Capture the new { id, url } as remoteRef "<type>:<id>" and WRITE it back into the link file(s) (.task-link.json and/or .tasks/<taskId>/.link.json), with history += { at: "${date || ''}", action: "create-remote", remoteRef }.`,
+      `   b) If there IS a remoteRef (already linked): just SYNC the status. ${status
+        ? `Target status = "${status}".`
+        : `Derive it from the change lifecycle: archived → "done"; open PR for feat/<change> (gh pr view feat/<change> --json state) → "in-review"; else proposal.md exists → "in-progress".`} Apply with ${CLI} set-status <remote taskId> <status> --source ${pushTo || '<remote source>'}, and append { at: "${date || ''}", status } to the link history.`,
+      `Return ok, reason, taskId (the remote id when created), status (or "created"), change.`,
     ].join('\n'),
     { schema: SIMPLE, label: 'task-push', phase: 'Resolve', agentType: 'general-purpose' },
   )
   if (!r || !r.ok) return { stage: 'push', ok: false, reason: r ? r.reason : 'push agent returned null', action }
-  return { stage: 'done', ok: true, action, taskId: r.taskId, status: r.status, change: r.change, nextStep: `Pushed status "${r.status}" to task ${r.taskId}.` }
+  return { stage: 'done', ok: true, action, taskId: r.taskId, status: r.status, change: r.change, nextStep: `Pushed task ${r.taskId} to remote (${r.status}).` }
 }
 
 // ================================================================ LOG

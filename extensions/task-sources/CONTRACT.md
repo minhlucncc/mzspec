@@ -17,14 +17,15 @@ Every adapter returns tasks in this shape (build them with `normalize.makeTask`)
 
 ## The adapter interface
 
-A constructor `new Adapter(entry, { statusMap, cwd, bin })` and four async verbs:
+A constructor `new Adapter(entry, { statusMap, cwd, bin })` and five async verbs:
 
 ```js
 class TaskSource {
-  async list({ status } = {})   // -> Task[]   (filter by status when given; stable order)
-  async get(id)                 // -> Task
-  async setStatus(id, status)   // map normalized status -> backend representation
-  async comment(id, text)       // append a comment (text may be multi-line)
+  async list({ status } = {})        // -> Task[]   (filter by status when given; stable order)
+  async get(id)                      // -> Task
+  async create({ title, body, labels }) // -> Task   (new backlog item; status 'todo')
+  async setStatus(id, status)        // map normalized status -> backend representation
+  async comment(id, text)            // append a comment (text may be multi-line)
 }
 ```
 

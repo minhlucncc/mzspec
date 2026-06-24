@@ -110,7 +110,7 @@ vendor_dir() { # vendor_dir <src-dir> <dest-dir> [exclude-regex] — file by fil
 
 # The task feature (task.js workflow, lib/task-sources, task-*.md commands) is a
 # separate `tasks` component, so `core` excludes it.
-TASK_EXCL='(^|/)task\.js$|(^|/)task-sources(/|$)|(^|/)task-(pull|push|log)\.md$'
+TASK_EXCL='(^|/)task\.js$|(^|/)task-sources(/|$)|(^|/)task-(pull|push|log|create|list)\.md$'
 
 if has core; then
   log "installing core (workflows + opsx commands)"
@@ -120,10 +120,10 @@ if has core; then
 fi
 
 if has tasks; then
-  log "installing task sources (task-pull/push/log + adapters)"
+  log "installing task sources (task-create/list/pull/push/log + adapters)"
   vendor      "$SRC/core/workflows/task.js" "$DEST/.claude/workflows/task.js"
   vendor_dir  "$SRC/lib/task-sources"       "$DEST/.claude/workflows/lib/task-sources"
-  for v in task-pull task-push task-log; do
+  for v in task-create task-list task-pull task-push task-log; do
     vendor "$SRC/core/commands/opsx/$v.md" "$DEST/.claude/commands/opsx/$v.md"
   done
 fi

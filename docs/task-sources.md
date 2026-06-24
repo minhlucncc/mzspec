@@ -3,16 +3,31 @@
 mzspec can pull "the next task to do" from a backlog, turn it into an OpenSpec change, and report
 status back as the change ships. The backlog is pluggable: a local folder, GitHub Issues, or Mello.
 
-## The three commands
+## The commands (create · list · pull · push · log)
 
 | Command | Does |
 |---|---|
-| `/opsx:task-pull` | pull the top open task (or `--id`; `--list` to preview) → create `cNNNN-<slug>` → seed `proposal.md` from the task → mark the task **in-progress** → write the task↔change link |
-| `/opsx:task-push` | sync the linked change's status back to the task (proposal→`in-progress`, open PR→`in-review`, archived→`done`, or `--status`) |
+| `/opsx:task-create` | author a new task from `--prompt`, `--from-change <c>` (its spec), or `--from-diff` (working code) — into the local backlog (or `--source <remote>`), optionally `--push <remote>` |
+| `/opsx:task-list` | list the backlog (`--source`, `--status`, `--all`). Read-only |
+| `/opsx:task-pull` | pull the top open task (or `--id`; `--list` to preview) → create `cNNNN-<slug>` → seed `proposal.md` → mark the task **in-progress** → write the task↔change link |
+| `/opsx:task-push` | **upsert to remote**: create the remote item for an unlinked local task (+ `remoteRef`), or sync the linked change's status (proposal→`in-progress`, open PR→`in-review`, archived→`done`) |
 | `/opsx:task-log` | add a comment to the linked task (`--text "..."`) |
 
-Flow: `/opsx:task-pull` → `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship-plan` → `/opsx:ship-code`, with
-`/opsx:task-push` / `/opsx:task-log` reporting back at lifecycle moments.
+### task → spec → ship
+
+The task verbs are the **front of the pipeline**, with two entry flows:
+
+```
+inbound :  human prompt ─┐
+           remote task  ─┴─▶ task-create / task-pull ─▶ /opsx:spec ─▶ /opsx:spec-pr ─▶ /opsx:ship-*
+                                       │ (task → in-progress)            (push status back at each step)
+outbound:  current spec/code ─▶ task-create --from-change|--from-diff ─▶ task-push <remote>  (→ backlog)
+```
+
+`task-push` / `task-log` report progress back to the source at lifecycle moments. The **remote
+inventory is per-project**: each project's `taskSources` binds the real backend (a GitHub repo's
+Issues, a Mello board); a task carries a `remoteRef` once linked, so the same normalized `Task`
+abstraction maps to whatever inventory the project uses.
 
 ## Configure (`mzspec.config.json`)
 
