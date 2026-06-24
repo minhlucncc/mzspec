@@ -14,7 +14,7 @@ export const meta = {
 // ---------------------------------------------------------------- args & safety
 let A = typeof args === 'string' ? JSON.parse(args) : args
 A = A || {}
-const change = A.change           // optional: OpenSpec change slug
+let change = A.change             // optional: OpenSpec change slug (may be auto-detected from branch)
 const pr = A.pr                   // optional: explicit PR URL/number (overrides change)
 const dryRun = !!A.dryRun
 const strategy = A.strategy || 'squash'  // squash | merge | rebase
@@ -36,21 +36,21 @@ if (!['squash', 'merge', 'rebase'].includes(strategy)) {
   throw new Error('strategy must be one of: squash, merge, rebase')
 }
 
-const branch = change ? `feat/${change}` : null
+let branch = change ? `feat/${change}` : null
 let prNumber, prUrl, owner
 
 // ---------------------------------------------------------------- Phase 1: Preflight
 phase('Preflight')
 const PRE = {
   type: 'object', additionalProperties: false,
-  required: ['ok', 'reason', 'prNumber', 'prUrl', 'owner', 'repo', 'state', 'isDraft', 'mergeable', 'headSha', 'baseRef', 'title', 'body', 'closingIssues', 'changelogEntry'],
+  required: ['ok', 'reason', 'prNumber', 'prUrl', 'owner', 'repo', 'state', 'isDraft', 'mergeable', 'headSha', 'headRefName', 'baseRef', 'title', 'body', 'closingIssues', 'changelogEntry'],
   properties: {
     ok: { type: 'boolean' }, reason: { type: 'string' },
     prNumber: { type: 'integer' }, prUrl: { type: 'string' },
     owner: { type: 'string' }, repo: { type: 'string' },
     state: { type: 'string' }, isDraft: { type: 'boolean' },
     mergeable: { type: ['string', 'null'] },
-    headSha: { type: 'string' }, baseRef: { type: 'string' },
+    headSha: { type: 'string' }, headRefName: { type: 'string' }, baseRef: { type: 'string' },
     title: { type: 'string' }, body: { type: 'string' },
     closingIssues: { type: 'array', items: { type: 'integer' } },
     changelogEntry: { type: 'string' },
@@ -65,7 +65,7 @@ const pre = await agent(
       ? `2. Find the open PR for branch "${branch}": gh pr view "${branch}" ${repo ? `--repo "${repo}"` : ''} --json number,url,state,isDraft,mergeable,headRefName,baseRefName,headRefOid,title,body,closingIssuesReferences. If none OPEN → ok=false+reason+STOP.`
       : `2. Parse PR# from "${pr}" (URL or number). If it's a full GitHub URL (https://github.com/.../pull/N), extract owner, repo, and number from it. Then: gh pr view <number> ${repo ? `--repo "${repo}"` : '--repo owner/repo (extracted from URL)'} --json number,url,state,isDraft,mergeable,headRefName,baseRefName,headRefOid,title,body,closingIssuesReferences.`,
     `3. Parse owner/repo: if repo was provided as arg, use that. Otherwise from gh repo view --json name,owner, or from the URL.`,
-    `4. Extract: prNumber, prUrl, state, isDraft, mergeable, headSha(headRefOid), baseRef(baseRefName), title, body, closingIssues (list of issue numbers from closingIssuesReferences. If closingIssuesReferences API is empty, check the body for "Closes #N" / "Fixes #N" patterns).`,
+    `4. Extract: prNumber, prUrl, state, isDraft, mergeable, headSha(headRefOid), headRefName (the branch name, e.g. "feat/c0005-xxx" or "spec/c0000-clean-old-structure"), baseRef(baseRefName), title, body, closingIssues (list of issue numbers from closingIssuesReferences. If closingIssuesReferences API is empty, check the body for "Closes #N" / "Fixes #N" patterns).`,
     `5. If this is an OpenSpec change (branch starts with "feat/"), check if a CHANGELOG entry exists:`,
     `   - git fetch origin "${branch}" 2>/dev/null; git diff origin/main...origin/"${branch}" -- CHANGELOG.md | head -80`,
     `   - Capture the changelogEntry (the added lines) or empty string if none found.`,
@@ -95,6 +95,18 @@ if (pre.changelogEntry) {
   log(`Changelog entry found (${pre.changelogEntry.length} chars)`)
 } else if (change) {
   log(`No CHANGELOG.md entry found for change "${change}"`)
+}
+
+// Auto-detect OpenSpec change from branch name if not explicitly provided.
+// Supports: feat/<slug>, spec/<slug>, chore/<slug>, fix/<slug>
+const BRANCH_CHANGE_RE = /^(?:feat|spec|chore|fix)\/([a-z][a-z0-9-]*)$/
+if (!change && pre.headRefName) {
+  const m = pre.headRefName.match(BRANCH_CHANGE_RE)
+  if (m) {
+    change = m[1]
+    branch = pre.headRefName
+    log(`Auto-detected OpenSpec change "${change}" from branch "${pre.headRefName}"`)
+  }
 }
 
 // ---------------------------------------------------------------- Phase 2: Prepare — update PR title/body if requested
