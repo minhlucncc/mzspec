@@ -21,7 +21,7 @@ Use those for the mechanics; use this skill for the standard you hold the change
 ## When to Use
 
 - Before merging any PR or change (including before `/opsx:ship` opens a PR)
-- After completing a feature implementation via `/opsx:apply`
+- After completing a feature implementation via `/opsx:ship-code`
 - When another agent or model produced code you need to evaluate
 - When refactoring existing packages
 - After any bug fix (review both the fix and the regression test — see `debugging-and-error-recovery`)
@@ -205,7 +205,7 @@ Check the author's verification story:
 Use different agents for different review perspectives:
 
 ```
-Agent A writes the code (e.g. via /opsx:apply)
+Agent A writes the code (e.g. via /opsx:ship-code)
     │
     ▼
 Agent B reviews for correctness and architecture (this skill / /code-review)
@@ -367,7 +367,7 @@ Part of code review is dependency review.
 ## MeKnow notes
 
 - This skill complements the built-in **`/code-review`** and **`/security-review`** slash commands and the **`/opsx:address-review`** PR-comment loop. Run those for the mechanics; hold the change to this five-axis standard.
-- **Lifecycle:** non-trivial work flows through OpenSpec — `/opsx:propose` → `/opsx:spec` → `/opsx:apply` → review (this skill) → `/opsx:sync` → `/opsx:archive`, all inside the `platform/` submodule. The autonomous `/opsx:ship` pipeline gates on the resolver-selected gates, so a review that lets a lint-failing, type-failing, or test-skipping change through will stall it.
+- **Lifecycle:** non-trivial work flows through OpenSpec — `/opsx:propose` → `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship` (ship-plan → ship-code, with review this skill backs + reconcile) → `/opsx:address-review` → `/opsx:archive`, all inside the `platform/` submodule. The autonomous `/opsx:ship` pipeline gates on the resolver-selected gates, so a review that lets a lint-failing, type-failing, or test-skipping change through will stall it.
 - **Invariants to verify every time** (from `openspec/project.md`): multi-tenant by default (`tenant_id` on every table/query/cache key/log line; cross-tenant joins are bugs; cache keys include an ACL-cohort hash); citations mandatory (`filter` stage carries `refuse_if: no_citations`); `temperature == 0` on `synthesize`/`cite`/`filter`; ACL enforced server-side in `retrieve_kb` with caller identity inherited (never trusted from the model); versions append-only (`BotVersion`/`KBVersion`/golden sets/traces — new child with a parent pointer); the compression invariant (only `memo_schema_ref`-shaped objects cross stage boundaries); MCP as the internal tool boundary (`kb.*`, embedded transport, ACP/A2A out of the retrieval loop); no LangChain/LangGraph/Haystack/LlamaIndex; OpenAPI is the API contract (portal types generated); new bot/capability = `BotVersion`/`BotPolicy` row + prompt file; new engine capability = a lobe/path registry row.
 - **Build/test gates (polyglot, resolver-selected):**
   - Python (uv member dir `D`): `uv --directory D run ruff check .`, `ruff format --check .`, `pyright`, `python -m pytest -q` (coverage `pytest -q --cov --cov-report=term-missing`).

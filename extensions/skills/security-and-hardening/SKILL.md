@@ -421,9 +421,10 @@ them (see `code-review-and-quality`). Commit lockfiles; install reproducibly in 
   + append-only versions (integrity/tampering). Preserve them; breaking one is an
   Ask-First.
 - **Lifecycle:** security-affecting changes go through OpenSpec
-  (`/opsx:propose` → `/opsx:apply` → `/opsx:sync` → `/opsx:archive`). Run the
-  built-in `/security-review` and `/code-review` commands; the autonomous
-  `/opsx:ship` pipeline gates on the resolver toolchain gates.
+  (`/opsx:propose` → `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship` →
+  `/opsx:address-review` → `/opsx:archive`). Run the built-in `/security-review`
+  and `/code-review` commands; the autonomous `/opsx:ship` pipeline gates on the
+  resolver toolchain gates and runs a security audit before opening the CODE PR.
 - **Verify with the gate resolver** (per touched package): `uv run ruff` / `pyright`
   / `python -m pytest -q` (Python `uv` workspace), `go build/vet/test -race`
   (go 1.24 modules), `pnpm typecheck/lint/test` (`apps/portal`), and

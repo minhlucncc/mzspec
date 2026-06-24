@@ -329,10 +329,10 @@ After completing a simplification pass:
 
 - **OpenSpec lifecycle.** A pure simplification rarely needs a new spec, but if it
   changes observable behavior it does — route it through `/opsx:propose` →
-  `/opsx:apply` → `/opsx:sync` → `/opsx:archive`, and never let a "simplification"
-  silently alter a baselined spec under `openspec/specs/`. Keep refactor commits out
-  of feature/`/opsx:ship` change sets; ship them on their own. All OpenSpec work
-  happens inside this `platform/` submodule.
+  `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship` → `/opsx:archive`, and never let a
+  "simplification" silently alter a baselined spec under `openspec/specs/`. Keep
+  refactor commits out of feature/`/opsx:ship` change sets; ship them on their own.
+  All OpenSpec work happens inside this `platform/` submodule.
 - **Invariant fences (do not simplify away):** `tenant_id` on every table/query/cache
   key/log line (no cross-tenant joins); ACL enforced **server-side** in `retrieve_kb`
   (never trust model-supplied identity); citations mandatory (`refuse_if:

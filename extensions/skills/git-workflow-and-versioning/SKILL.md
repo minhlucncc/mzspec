@@ -51,7 +51,7 @@ Not this:
   Implement everything → Hope it works → Giant commit
 ```
 
-Commits are save points. If the next change breaks something, you can revert to the last known-good state instantly. When applying an OpenSpec change with `/opsx:apply`, tick each task in `tasks.md` and commit per logical slice.
+Commits are save points. If the next change breaks something, you can revert to the last known-good state instantly. When implementing an OpenSpec change with `/opsx:ship-code`, tick each task in `tasks.md` and commit per work-unit (Red→Green→one commit).
 
 ### 2. Atomic Commits
 
@@ -425,12 +425,15 @@ EOF
 
 ## Project notes
 
-- One OpenSpec change → one `feat/<change>` branch → one PR, **inside the `platform/`
-  submodule**. Drive non-trivial work through `/opsx:propose` → `/opsx:apply` →
-  `/opsx:sync` → `/opsx:archive`.
-- **`/opsx:ship`** is the autonomous lane: apply → verify (the resolver-selected
-  per-toolchain gates + `openspec validate "<change>" --strict`) → sync delta specs →
-  prepend the `CHANGELOG.md` entry → commit (with the Co-Authored-By trailer) → push →
+- One OpenSpec change → a `spec/<change>` branch + SPEC PR (the contract), then a
+  `feat/<change>` branch + CODE PR, **inside the `platform/` submodule**. Drive
+  non-trivial work through `/opsx:propose` → `/opsx:spec` → `/opsx:spec-pr` →
+  `/opsx:ship` → `/opsx:address-review` → `/opsx:archive`.
+- **`/opsx:ship`** is the autonomous lane: ship-plan (group into work-units) →
+  ship-code (each unit Red→Green→one commit) → verify (the resolver-selected
+  per-toolchain gates + `openspec validate "<change>" --strict`) → reconcile delta vs
+  canonical (drift → stop) → prepend the `CHANGELOG.md` entry → commit (with the
+  Co-Authored-By trailer) → push →
   open the PR via `gh`, then **STOPS at the PR** (no auto-merge). `--dry-run` stops
   before push/PR.
 - `/opsx:archive` runs **after** the PR merges, moving the change to

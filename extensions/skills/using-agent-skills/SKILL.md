@@ -1,6 +1,6 @@
 ---
 name: using-agent-skills
-description: Discovers and invokes agent skills (MeKnow-adapted). Use when starting a session or when you need to discover which skill applies to the current task. This is the meta-skill that governs how all other skills are discovered and invoked, and it routes work onto this repo's OpenSpec lifecycle (/opsx:propose → design → tasks → /opsx:apply → verify → /opsx:ship).
+description: Discovers and invokes agent skills (MeKnow-adapted). Use when starting a session or when you need to discover which skill applies to the current task. This is the meta-skill that governs how all other skills are discovered and invoked, and it routes work onto this repo's mzspec-driven OpenSpec lifecycle (/opsx:propose → /opsx:spec → /opsx:spec-pr → /opsx:ship [ship-plan → ship-code] → /opsx:address-review → /opsx:archive).
 ---
 
 # Using Agent Skills
@@ -9,7 +9,7 @@ description: Discovers and invokes agent skills (MeKnow-adapted). Use when start
 
 Agent Skills is a collection of engineering workflow skills organized by development phase. Each skill encodes a specific process that senior engineers follow. This meta-skill helps you discover and apply the right skill for your current task.
 
-In the Mezon Mentor Bot ("MeKnow") platform, the lifecycle is anchored to **OpenSpec**: non-trivial work starts as a change proposal, not code. The routing table below maps each development phase to the matching skill(s) *and* the `/opsx:*` command that drives it. Alongside the engineering-practice skills, the repo also carries **frontend** skills (for the `apps/portal` React 19 + Vite surface) and **Converge** playbook skills — route to those when the task is portal-UI or playbook-orchestration shaped rather than backend/worker logic.
+In the Mezon Mentor Bot ("MeKnow") platform, the lifecycle is anchored to **OpenSpec** driven by the **mzspec** `/opsx:*` workflow (the core spine; these skills are the "how to build well" extension over it): non-trivial work starts as a change proposal, not code. The routing table below maps each development phase to the matching skill(s) *and* the `/opsx:*` command that drives it. Alongside the engineering-practice skills, the repo also carries **frontend** skills for the `apps/portal` React 19 + Vite surface — route to those when the task is portal-UI shaped rather than backend/worker logic. (Converge orchestration is **retired** — see `.converge/DEPRECATED.md`; do not route new work to it.)
 
 ## Skill Discovery
 
@@ -63,7 +63,7 @@ ASSUMPTIONS I'M MAKING:
 → Correct me now or I'll proceed with these.
 ```
 
-Don't silently fill in ambiguous requirements. The most common failure mode is making wrong assumptions and running with them unchecked. Surface uncertainty early — it's cheaper than rework. In this repo, capture these in the change's `proposal.md` so the human reviews them before `/opsx:apply`.
+Don't silently fill in ambiguous requirements. The most common failure mode is making wrong assumptions and running with them unchecked. Surface uncertainty early — it's cheaper than rework. In this repo, capture these in the change's `proposal.md` so the human reviews them before `/opsx:ship`.
 
 ### 2. Manage Confusion Actively
 
@@ -139,7 +139,7 @@ These are the subtle errors that look like productivity but create problems:
 
 2. **Skills are workflows, not suggestions.** Follow the steps in order. Don't skip verification steps.
 
-3. **Multiple skills can apply.** A feature might involve `spec-driven-development` (`/opsx:propose`) → `planning-and-task-breakdown` (design.md + tasks.md) → `test-driven-development` → `incremental-implementation` (`/opsx:apply`) → `code-review-and-quality` → `code-simplification` → `git-workflow-and-versioning` (`/opsx:ship`) in sequence.
+3. **Multiple skills can apply.** A feature might involve `spec-driven-development` (`/opsx:propose`) → `spec-review-and-quality` (`/opsx:spec` → `/opsx:spec-pr`) → `planning-and-task-breakdown` (design.md + tasks.md) → `test-driven-development` → `incremental-implementation` (`/opsx:ship-code`) → `code-review-and-quality` → `code-simplification` → `git-workflow-and-versioning` (`/opsx:ship`) in sequence.
 
 4. **When in doubt, start with a proposal.** If the task is non-trivial and there's no OpenSpec change, begin with `spec-driven-development` and run `/opsx:propose`.
 
@@ -151,16 +151,19 @@ For a complete change, the typical sequence is:
 1.  /opsx:explore               → Think through the idea (no code)
 2.  spec-driven-development     → /opsx:propose: proposal.md + delta specs
 2b. spec-review-and-quality     → /opsx:spec: cross-validate 6 axes → revise until clean
+2c. spec-review-and-quality     → /opsx:spec-pr: sync delta→canonical + open the SPEC PR
+                                   (a human merges the contract BEFORE any code)
 3.  planning-and-task-breakdown → design.md (decisions) + tasks.md (ordered tasks)
 4.  test-driven-development     → Red: failing test first for each slice
-5.  incremental-implementation  → Green: /opsx:apply, build slice by slice, tick tasks.md
+5.  incremental-implementation  → Green: /opsx:ship-code, build unit by unit, tick tasks.md
 6.  debugging-and-error-recovery→ Reproduce → localize → fix → guard when something breaks
 7.  code-review-and-quality     → Review before merge
 8.  security-and-hardening      → Multi-tenant isolation, server-side ACL, secrets handling
 9.  code-simplification         → Reduce complexity while preserving behavior
 10. git-workflow-and-versioning → Clean commits / branch
 11. documentation-and-adrs      → Document the why (change design.md + docs/)
-12. /opsx:ship                  → apply → verify (resolver gates) → sync → changelog → PR
+12. /opsx:ship                  → ship-plan → ship-code (Red→Green) → verify (resolver gates)
+                                   → reconcile → changelog → open the CODE PR
 13. /opsx:address-review        → Respond to PR feedback
 14. /opsx:archive               → After PR merges, move change to openspec/changes/archive/
 ```
@@ -174,9 +177,10 @@ Not every task needs every skill. A bug fix might only need: `debugging-and-erro
 | Explore | `/opsx:explore` | Think through an idea, clarify requirements — no code written |
 | Define | spec-driven-development + `/opsx:propose` | Proposal and delta specs before code |
 | Review spec | spec-review-and-quality + `/opsx:spec` | 6-axis cross-validate → revise until clean, minimal, testable, complete |
+| Merge spec | spec-review-and-quality + `/opsx:spec-pr` | Sync delta→canonical, open the code-free SPEC PR (human merges before any code) |
 | Plan | planning-and-task-breakdown (design.md + tasks.md) | Decompose into small, verifiable tasks |
 | Verify (Red) | test-driven-development | Failing test first, then make it pass |
-| Build (Green) | incremental-implementation + `/opsx:apply` | Thin vertical slices, tick tasks.md, verify each |
+| Build (Green) | incremental-implementation + `/opsx:ship-code` | Test-first units, Red→Green→one commit, tick tasks.md, verify each |
 | Verify | debugging-and-error-recovery | Reproduce → localize → fix → guard |
 | Review | code-review-and-quality | Five-axis review with quality gates |
 | Review | security-and-hardening | Multi-tenant isolation, server-side ACL, Fernet-encrypted secrets |
@@ -184,7 +188,7 @@ Not every task needs every skill. A bug fix might only need: `debugging-and-erro
 | Ship | git-workflow-and-versioning | Atomic commits, clean history |
 | Ship | ci-cd-and-automation | Automated resolver gates (ruff/pyright/pytest, go test -race, pnpm, benchmarks) |
 | Ship | documentation-and-adrs | Document the why, not just the what |
-| Ship | `/opsx:ship` | Autonomous apply → verify → sync → changelog → PR |
+| Ship | `/opsx:ship` | Autonomous ship-plan → ship-code (Red→Green) → verify → reconcile → changelog → CODE PR |
 | Ship | `/opsx:address-review` | Respond to PR review feedback |
 | Ship | `/opsx:archive` | Finalize change after PR merges |
 

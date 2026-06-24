@@ -329,8 +329,9 @@ This is the same principle behind the **server-side ACL** and **citations-mandat
 ## Project notes
 
 - **Spec-driven first.** If the bug reveals a behavior gap rather than a typo, the
-  fix is a spec change, not a hotfix. Capture it with `/opsx:propose`, implement via
-  `/opsx:apply`, then `/opsx:sync`/`/opsx:archive`. The `/opsx:ship` pipeline runs the
+  fix is a spec change, not a hotfix. Capture it with `/opsx:propose`, merge the
+  contract via `/opsx:spec` → `/opsx:spec-pr`, implement via `/opsx:ship`
+  (ship-plan → ship-code), then `/opsx:archive`. The `/opsx:ship` pipeline runs the
   resolver gates as its verify step — keep the tree green so it doesn't stall.
 - **Bug-prone invariants live here** — restore them rather than patch symptoms:
   `tenant_id` on every table/query/cache key (cross-tenant joins are bugs); citations

@@ -7,12 +7,12 @@ description: Delivers changes incrementally (MeKnow-adapted, polyglot + OpenSpec
 
 ## Overview
 
-Build in thin vertical slices — implement one piece, test it, verify it, then expand. Avoid implementing an entire feature in one pass. Each increment should leave the system in a working, testable state. This is the execution discipline that makes large features manageable, and it is exactly how `/opsx:apply` works through an OpenSpec change's `tasks.md`: one task, tested and ticked off, before the next.
+Build in thin vertical slices — implement one piece, test it, verify it, then expand. Avoid implementing an entire feature in one pass. Each increment should leave the system in a working, testable state. This is the execution discipline that makes large features manageable, and it is exactly how `/opsx:ship-code` works through an OpenSpec change's work-units: one unit, Red→Green→one commit (ticking `tasks.md` off), before the next.
 
 ## When to Use
 
 - Implementing any multi-file change
-- Working through the tasks of an OpenSpec change (`/opsx:apply`)
+- Working through the work-units of an OpenSpec change (`/opsx:ship-code`)
 - Building a new feature from a task breakdown
 - Refactoring existing code
 - Any time you're tempted to write more than ~100 lines before testing
@@ -246,7 +246,7 @@ After completing all increments for a task:
 
 ## MeKnow notes
 
-- **OpenSpec lifecycle.** Start non-trivial work with `/opsx:propose`, quality-gate with `/opsx:spec`, then implement slice-by-slice with `/opsx:apply` (ticking `tasks.md` as you go), `/opsx:sync` the delta specs into `openspec/specs/`, and `/opsx:archive` when done. The autonomous `/opsx:ship` pipeline applies → verifies → syncs → opens a PR; its Test(Red) phase pairs naturally with thin slices — one failing test, minimal code, repeat (see `test-driven-development`). All of this happens inside the `platform/` submodule.
+- **OpenSpec lifecycle.** Start non-trivial work with `/opsx:propose`, quality-gate with `/opsx:spec`, merge the contract with `/opsx:spec-pr` (sync delta→canonical + the human-merged SPEC PR), then implement unit-by-unit with `/opsx:ship` (`ship-plan` groups the units, `ship-code` runs each Red→Green→one commit, ticking `tasks.md` as you go), which reconciles the delta vs canonical and `/opsx:archive` when the code PR merges. The autonomous `/opsx:ship` pipeline plans → implements → verifies → reconciles → opens the CODE PR; its Test(Red) phase pairs naturally with thin slices — one failing test, minimal code, repeat (see `test-driven-development`). All of this happens inside the `platform/` submodule.
 - **Invariants to keep intact across slices:** multi-tenant by default (`tenant_id` on every table/query/cache key/log line; cross-tenant joins are bugs); citations mandatory (`filter` stage carries `refuse_if: no_citations`); `temperature == 0` on `synthesize`/`cite`/`filter`; ACL enforced server-side in `retrieve_kb` with caller identity inherited; versions append-only (`BotVersion`/`KBVersion` — new child with a parent pointer); compression invariant (only `memo_schema_ref`-shaped objects cross stage boundaries); MCP as the internal tool boundary (`kb.*`, embedded transport); no LangChain/LangGraph/Haystack/LlamaIndex; OpenAPI is the API contract (portal types generated); new bot/capability = new `BotVersion`/`BotPolicy` row + prompt file; new engine capability = a lobe/path registry row, never an interpreter branch.
 - **Test-deliverable file patterns per slice:** `tests/test_<feature>.py` (pytest) for Python, `<feature>_test.go` (table-driven) for Go, `apps/portal/src/**/<feature>.test.ts(x)` (vitest) for TypeScript — in the touched package's language.
 - **DB-dependent pytest** needs `DATABASE_URL`/`TEST_DATABASE_URL` pointing at a pgvector instance (local `docker compose -f docker-compose.dev.yml`; CI `pgvector/pgvector:pg16`). Absent a DB those tests skip (recorded, not failed) — bring up pgvector for DB-dependent slices.
