@@ -56,6 +56,34 @@ During planning (e.g. `/opsx:spec`, or right after `/opsx:task-pull`):
 There is nothing to register: dropping a `<name>/TEMPLATE.md` under `templatesDir` is
 enough. The only config knob is the optional `templatesDir` path.
 
+## Composite playbooks: chaining
+
+Keep per-step playbooks thin and **compose them** with a chain template — no duplication,
+and **no resolver or CLI**: a chain is just a template whose body tells the AI to author
+the tasks across its member templates. The agent reads the chain, then each member's
+guide, and lays down a task group per member.
+
+- A **full** chain (e.g. `presale`) lists every step in order — the AI authors tasks for
+  all members.
+- A **selective** chain (e.g. `change-request`) tells the AI to include only the members
+  a change touches (for presale, the project's `impact.js` gives affected + cascade), in
+  dependency order, skipping steps the change doesn't affect.
+
+```markdown
+---
+name: presale
+description: Full deal pipeline — author tasks by chaining every step
+---
+# Presale pipeline
+Author tasks.md by chaining, in order: enrich → requirements → prd → estimation →
+proposal → translate (honor each step's stated dependencies).
+```
+
+This is the presale shape exactly: thin `enrich` / `requirements` / `prd` / `estimation`
+/ `proposal` / `translate` playbooks, a `presale` chain over all of them, and a
+`change-request` chain that re-runs only what a change touches — all expressed as markdown
+the AI follows.
+
 ## Manage them with the `template-*` commands
 
 | Command | Does |

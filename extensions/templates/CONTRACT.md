@@ -64,6 +64,52 @@ Templates are **discovered**, not registered — dropping a `<name>/TEMPLATE.md`
 `templatesDir` is enough; there is no list to maintain in `mzspec.config.json` (only the
 optional `templatesDir` path override).
 
+## Composite planning playbooks: chaining (an authoring convention)
+
+A planning playbook can **chain** others, so thin per-step templates compose into a
+pipeline without duplication. **There is no resolver and no CLI for this**: a chain is
+just a template whose body tells the planning agent to author the tasks across its member
+templates. The agent reads the chain, then each member's guide, and lays down one task
+group per member.
+
+```markdown
+---
+name: presale
+description: Full deal pipeline — author tasks by chaining every step
+---
+
+# Presale pipeline
+
+Author `tasks.md` by chaining these member templates, in order (read each one's guide and
+lay down its task group, honoring the stated dependencies):
+
+1. enrich
+2. requirements   (needs enrich)
+3. prd            (needs requirements)
+4. estimation     (needs prd)
+5. proposal       (needs prd, estimation)
+6. translate      (one task per secondary language)
+```
+
+A **selective** chain just tells the agent to include only some members:
+
+```markdown
+---
+name: change-request
+description: Re-run only the steps a change touches
+---
+
+# Change-request (selective chain)
+
+1. Determine which docs the request affects + their cascade (e.g. from the project's
+   impact classifier: a budget change → estimation, then proposal).
+2. Author tasks for ONLY those member templates, in dependency order. Do not re-run steps
+   whose output the change does not affect.
+```
+
+The member list, order, and selection live in readable prose the AI follows — nothing
+parses or executes them.
+
 ## Managing templates
 
 Author / revise / remove them with the `template-*` commands (which call
