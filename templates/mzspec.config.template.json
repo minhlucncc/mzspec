@@ -37,6 +37,7 @@
     "gate": null
   },
   "gatesDir": "gates",
+  "templatesDir": "openspec/templates",
   "customGates": [],
   "invariants": [],
   "taskSources": [

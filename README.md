@@ -28,7 +28,7 @@ curl -fsSL https://raw.githubusercontent.com/minhlucncc/mzspec/main/install.sh |
 The installer vendors the pipeline into your project's `.claude/`, drops a `mzspec.config.json` you
 fill in, and writes an **`SDD_GUIDE.md`** that orients humans + agents to the `task → spec → ship`
 workflow. It's idempotent (re-run anytime; `--force` to overwrite). Pick components with `--with`
-(`core`, `gates`, `skills`, `tasks`). See [docs/install.md](docs/install.md).
+(`core`, `gates`, `skills`, `tasks`, `templates`). See [docs/install.md](docs/install.md).
 
 ## What you get
 
@@ -39,6 +39,7 @@ workflow. It's idempotent (re-run anytime; `--force` to overwrite). Pick compone
 | **Extensions: gates** | the **gate plugin contract** + generic starter gates | `.claude/mzspec-gates/` |
 | **Extensions: skills** | engineering-practice skills (TDD, code review, security, …) | `.claude/skills/` |
 | **Tasks** (`tasks`) | the pipeline front — `task → spec → ship`. Author/pull/list backlog tasks and push status/items back: `/opsx:task-create\|list\|pull\|push\|log` over local-folder / GitHub Issues / Mello (per-project `taskSources`) | `.claude/workflows/lib/task-sources/`, `.claude/commands/opsx/task-*.md` |
+| **Templates** (`templates`) | optional, **skill-like planning guides** consulted during planning — `/opsx:template-create\|update\|remove\|list`. A template is a `<name>/TEMPLATE.md` (name + description + guide body); if none matches a change, planning just proceeds normally | `openspec/templates/`, `.claude/commands/opsx/template-*.md`, `.claude/mzspec-templates/` |
 | **Config** | `mzspec.config.json` — the single source of truth for your toolchains, gates, and invariants | repo root |
 
 ## Configure
