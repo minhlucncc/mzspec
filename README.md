@@ -50,8 +50,8 @@ Everything project-specific lives in **`mzspec.config.json`** (validated by
 [`mzspec.config.schema.json`](mzspec.config.schema.json)). Declare your toolchains, their
 package dirs and gate commands, register your own gate scripts via `customGates`, and list
 your hard-invariants. The [`examples/meknow/`](examples/meknow/) config is a complete,
-real-world reference (a polyglot Python+Go+TS monorepo). See [docs/customize.md](docs/customize.md)
-and [docs/gate-plugin.md](docs/gate-plugin.md).
+real-world reference (a polyglot Python+Go+TS monorepo). See [docs/customize.md](docs/customize.md),
+[docs/gate-plugin.md](docs/gate-plugin.md), and [docs/commit-convention.md](docs/commit-convention.md).
 
 ## How it works
 
