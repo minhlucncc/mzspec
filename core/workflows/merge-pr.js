@@ -20,7 +20,7 @@ const dryRun = !!A.dryRun
 const strategy = A.strategy || 'squash'  // squash | merge | rebase
 const title = A.title || ''       // override PR title (empty = keep existing)
 const body = A.body || ''         // override/append PR body (empty = keep existing)
-const repo = A.repo || ''         // optional: "owner/repo" for cross-repo PRs (auto-detected from URL)
+let repo = A.repo || ''           // optional: "owner/repo" for cross-repo PRs (may be reassigned by preflight)
 const closes = A.closes || ''     // explicit "Closes #N" to add (empty = auto-detect from existing PR)
 const base = A.base || 'main'
 const skipArchive = !!A.skipArchive  // skip the OpenSpec archive step after merge
@@ -37,7 +37,7 @@ if (!['squash', 'merge', 'rebase'].includes(strategy)) {
 }
 
 const branch = change ? `feat/${change}` : null
-let prNumber, prUrl, owner, repo
+let prNumber, prUrl, owner
 
 // ---------------------------------------------------------------- Phase 1: Preflight
 phase('Preflight')
