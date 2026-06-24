@@ -19,6 +19,7 @@ const dryRun = !!A.dryRun
 const strategy = A.strategy || 'squash'  // squash | merge | rebase
 const title = A.title || ''       // override PR title (empty = keep existing)
 const body = A.body || ''         // override/append PR body (empty = keep existing)
+const repo = A.repo || ''         // optional: "owner/repo" for cross-repo PRs (auto-detected from URL)
 const closes = A.closes || ''     // explicit "Closes #N" to add (empty = auto-detect from existing PR)
 const base = A.base || 'main'
 const reserve = A.reserveTokens || 20000
@@ -57,20 +58,22 @@ const pre = await agent(
   [
     `Preflight for merge-pr. Use Bash (gh, git, node). Steps:`,
     `1. TOOLS: command -v gh git node; gh auth status → ok=false+reason+STOP if missing.`,
+    repo ? `   NOTE: Using cross-repo mode — all gh commands need --repo "${repo}".` : '',
     branch
-      ? `2. Find the open PR for branch "${branch}": gh pr view "${branch}" --json number,url,state,isDraft,mergeable,headRefName,baseRefName,headRefOid,title,body,closingIssuesReferences. If none OPEN → ok=false+reason+STOP.`
-      : `2. Parse PR# from "${pr}" (URL or number). Use gh pr view <number> --json number,url,state,isDraft,mergeable,headRefName,baseRefName,headRefOid,title,body,closingIssuesReferences.`,
-    `3. Parse owner/repo from gh repo view --json name,owner.`,
+      ? `2. Find the open PR for branch "${branch}": gh pr view "${branch}" ${repo ? `--repo "${repo}"` : ''} --json number,url,state,isDraft,mergeable,headRefName,baseRefName,headRefOid,title,body,closingIssuesReferences. If none OPEN → ok=false+reason+STOP.`
+      : `2. Parse PR# from "${pr}" (URL or number). If it's a full GitHub URL (https://github.com/.../pull/N), extract owner, repo, and number from it. Then: gh pr view <number> ${repo ? `--repo "${repo}"` : '--repo owner/repo (extracted from URL)'} --json number,url,state,isDraft,mergeable,headRefName,baseRefName,headRefOid,title,body,closingIssuesReferences.`,
+    `3. Parse owner/repo: if repo was provided as arg, use that. Otherwise from gh repo view --json name,owner, or from the URL.`,
     `4. Extract: prNumber, prUrl, state, isDraft, mergeable, headSha(headRefOid), baseRef(baseRefName), title, body, closingIssues (list of issue numbers from closingIssuesReferences. If closingIssuesReferences API is empty, check the body for "Closes #N" / "Fixes #N" patterns).`,
     `5. If this is an OpenSpec change (branch starts with "feat/"), check if a CHANGELOG entry exists:`,
     `   - git fetch origin "${branch}" 2>/dev/null; git diff origin/main...origin/"${branch}" -- CHANGELOG.md | head -80`,
     `   - Capture the changelogEntry (the added lines) or empty string if none found.`,
-    `   - Use the PR number if the branch fetch fails.`,
+    `   - Skip CHANGELOG check if remote repo (not the local project).`,
     `6. Gate checks:`,
     `   - state must be "OPEN" → ok=false if not`,
     `   - isDraft must be false → ok=false + reason "PR is a draft — mark it ready for review first"`,
     `   - mergeable should not be "CONFLICTING" → ok=false + reason "PR has merge conflicts — resolve them first"`,
     `Return ok, reason, prNumber, prUrl, owner, repo, state, isDraft, mergeable, headSha, baseRef, title, body, closingIssues[], changelogEntry.`,
+    `IMPORTANT: If you derived owner/repo from a URL, return the correct owner and repo values so downstream phases use them.`,
   ].join('\n'),
   { schema: PRE, label: 'preflight', phase: 'Preflight', agentType: 'general-purpose' },
 )
@@ -125,7 +128,7 @@ if (needsUpdate) {
         `New title: "${finalTitle}"`,
         `New body: starts with "${finalBody.slice(0, 100)}..."`,
         ``,
-        `Run: gh pr edit ${prNumber} --title "${finalTitle.replace(/"/g, '\\"')}" --body "${finalBody.replace(/"/g, '\\"')}"`,
+        `Run: gh pr edit ${prNumber} --title "${finalTitle.replace(/"/g, '\\"')}" --body "${finalBody.replace(/"/g, '\\"')}" ${repo ? `--repo "${owner}/${repo}"` : ''}`,
         `Return { ok: true } on success, or the error message.`,
       ].join('\n'),
       {
@@ -167,15 +170,16 @@ const mergeResult = await agent(
     `Merge PR #${prNumber} in ${owner}/${repo} using ${strategy} merge strategy.`,
     `Head SHA: ${pre.headSha}`,
     `Title: "${finalTitle}"`,
+    repo ? `Repo: ${owner}/${repo}` : '',
     ``,
-    `1. Merge: gh pr merge ${prNumber} --${strategy} --delete-branch`,
+    `1. Merge: gh pr merge ${prNumber} --${strategy} --delete-branch ${repo ? `--repo "${owner}/${repo}"` : ''}`,
     `   If --squash: also pass --subject "${finalTitle.replace(/"/g, '\\"')}" to set the squash commit title.`,
     ``,
-    `2. Capture the merge result: gh pr view ${prNumber} --json mergedAt,mergeCommit,state`,
+    `2. Capture the merge result: gh pr view ${prNumber} --json mergedAt,mergeCommit,state ${repo ? `--repo "${owner}/${repo}"` : ''}`,
     `   Extract mergeCommit.oid (the merge commit SHA).`,
     ``,
     `3. For each linked issue #${pre.closingIssues.join(', #') || '(none)'}:`,
-    `   - Close it: gh issue close <num> --comment "Closed by merge of PR #${prNumber} (${pre.headSha.slice(0, 7)})"`,
+    `   - Close it: gh issue close <num> --comment "Closed by merge of PR #${prNumber} (${pre.headSha.slice(0, 7)})" ${repo ? `--repo "${owner}/${repo}"` : ''}`,
     `   - The comment body should include a cross-reference: "Merged in PR #${prNumber}"`,
     ``,
     `4. If no linked issues were detected but the PR was linked via "Closes #N" in the body:`,
