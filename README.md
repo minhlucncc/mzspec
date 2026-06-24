@@ -25,9 +25,10 @@ openspec CLI + folder  →   /opsx:spec → /opsx:spec-pr → /opsx:ship-plan
 curl -fsSL https://raw.githubusercontent.com/minhlucncc/mzspec/main/install.sh | bash -s -- --with core,gates,skills
 ```
 
-The installer vendors the pipeline into your project's `.claude/` and drops a
-`mzspec.config.json` you fill in. It's idempotent (re-run anytime; `--force` to overwrite).
-Pick components with `--with` (`core`, `gates`, `skills`). See [docs/install.md](docs/install.md).
+The installer vendors the pipeline into your project's `.claude/`, drops a `mzspec.config.json` you
+fill in, and writes an **`SDD_GUIDE.md`** that orients humans + agents to the `task → spec → ship`
+workflow. It's idempotent (re-run anytime; `--force` to overwrite). Pick components with `--with`
+(`core`, `gates`, `skills`, `tasks`). See [docs/install.md](docs/install.md).
 
 ## What you get
 

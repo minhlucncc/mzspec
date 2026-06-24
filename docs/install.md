@@ -38,7 +38,8 @@ git clone https://github.com/minhlucncc/mzspec && bash mzspec/install.sh --dest 
    - `skills` → `.claude/skills/`
    - `gates` → `.claude/mzspec-gates/` (the contract + starters)
 4. Writes `mzspec.config.json` from the template **only if absent** (never clobbers yours), plus
-   `mzspec.config.schema.json` for editor validation.
+   `mzspec.config.schema.json` for editor validation, and an **`SDD_GUIDE.md`** (the workflow intro,
+   also skip-if-present).
 
 Re-running is safe: existing files are skipped unless `--force` is given. The installer prints how
 many files were installed vs left in place.

@@ -151,10 +151,19 @@ fi
 # Schema for editor validation.
 vendor "$SRC/mzspec.config.schema.json" "$DEST/mzspec.config.schema.json"
 
+# SDD_GUIDE.md — orient humans + agents to the task→spec→ship workflow (skip if present).
+if [ ! -e "$DEST/SDD_GUIDE.md" ]; then
+  cp "$SRC/templates/SDD_GUIDE.md" "$DEST/SDD_GUIDE.md"
+  log "wrote SDD_GUIDE.md (the workflow guide)"
+else
+  log "SDD_GUIDE.md already present — left untouched"
+fi
+
 # ---- summary -------------------------------------------------------------------
 
 log "done — $copied file(s) installed, $skipped left in place (use --force to overwrite)."
 log "next:"
+log "  0. read SDD_GUIDE.md — the task→spec→ship workflow in 2 minutes"
 log "  1. edit mzspec.config.json — set toolchains.<tc>.dirs/gates, gatesDir, customGates, taskSources"
 log "  2. add your gate scripts under your gatesDir (see .claude/mzspec-gates/CONTRACT.md)"
 log "  3. (tasks) author a .tasks/<id>/task.md or enable a gh/mello source, then /opsx:task-pull"
