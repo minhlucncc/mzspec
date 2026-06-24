@@ -14,6 +14,7 @@ OpenSpec (base)            mzspec (this repo, on top)
 openspec CLI + folder  →   /opsx:spec → /opsx:spec-pr → /opsx:ship-plan
 /opsx:propose|apply         → /opsx:ship-code → /opsx:address-review → ship-all
                             /opsx:author-review (lead reviews member's PR → address-review)
+                            /opsx:merge-pr      (lead merges PR, closes issue, links ticket)
 /opsx:sync|archive          + the gate-resolver/runner + gate plugin contract
                             + engineering-practice skills
                             (all artifacts still live in openspec/)
@@ -35,7 +36,7 @@ workflow. It's idempotent (re-run anytime; `--force` to overwrite). Pick compone
 
 | Layer | What | Where it lands |
 |---|---|---|
-| **Workflow** (`core`) | the two-PR gated ship pipeline (`spec-change`, `spec-pr`, `ship-plan`, `ship-code`, `ship-all`, `address-review`, `author-review`) + the `/opsx:*` commands | `.claude/workflows/`, `.claude/commands/opsx/` |
+| **Workflow** (`core`) | the two-PR gated ship pipeline (`spec-change`, `spec-pr`, `ship-plan`, `ship-code`, `ship-all`, `address-review`, `author-review`, `merge-pr`) + the `/opsx:*` commands | `.claude/workflows/`, `.claude/commands/opsx/` |
 | **Scripts** (`core`) | the config-driven **gate-resolver** (maps a diff → the exact per-toolchain gates) | `.claude/workflows/lib/` |
 | **Extensions: gates** | the **gate plugin contract** + generic starter gates | `.claude/mzspec-gates/` |
 | **Extensions: skills** | engineering-practice skills (TDD, code review, security, …) | `.claude/skills/` |

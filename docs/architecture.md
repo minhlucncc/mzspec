@@ -24,7 +24,7 @@ same `openspec/` tree — mzspec never creates a parallel store.
 - **OpenSpec provides:** the `openspec` CLI, `openspec init`/`validate`, and the base
   `/opsx:propose`, `/opsx:apply`, `/opsx:sync`, `/opsx:archive` commands.
 - **mzspec adds:** `/opsx:spec`, `/opsx:spec-pr`, `/opsx:ship-plan`, `/opsx:ship-code`,
-  `/opsx:ship`, `/opsx:ship-pr`, `/opsx:ship-all`, `/opsx:address-review`, `/opsx:author-review`,
+  `/opsx:ship`, `/opsx:ship-pr`, `/opsx:ship-all`, `/opsx:address-review`, `/opsx:author-review`, `/opsx:merge-pr`,
   plus the gate engine.
 
 The `/opsx:*` namespace is shared deliberately — mzspec extends OpenSpec's command surface rather
@@ -45,6 +45,8 @@ than forking it.
                                              (lead runs on PR)    └─ comment mode (custom message)
                                                                            │
                                               /opsx:address-review ◀───────┘  (PR feedback loop)
+                                                               │
+                                               /opsx:merge-pr ──┘  (lead merges PR, closes issue)
                                                                      │
                                                           /opsx:archive (OpenSpec)
 ```
