@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/minhlucncc/mzspec/main/mzspec.config.schema.json",
+  "mzspecVersion": "0.1.0",
+  "openspec": {
+    "changesDir": "openspec/changes",
+    "specsDir": "openspec/specs",
+    "archivePattern": "YYYY-MM-DD-{change}",
+    "evidenceDir": "openspec/changes/{change}/evidence"
+  },
+  "git": {
+    "base": "main",
+    "branchPrefix": "feat/",
+    "specBranchPrefix": "spec/",
+    "changelog": "CHANGELOG.md"
+  },
+  "handoffDir": ".handoff/{change}",
+  "toolchains": {
+    "py": {
+      "dirs": ["packages/example", "apps/example"],
+      "gates": [
+        { "name": "lint", "cmd": "uv --directory {dir} run ruff check ." },
+        { "name": "typecheck", "cmd": "uv --directory {dir} run pyright" },
+        { "name": "test", "cmd": "uv --directory {dir} run python -m pytest -q" }
+      ]
+    }
+  },
+  "bench": {
+    "prefix": "benchmarks/",
+    "dir": "benchmarks",
+    "alsoWhenToolchains": [],
+    "gates": []
+  },
+  "metaPrefixes": ["openspec/", "docs/", ".claude/", ".github/"],
+  "always": [{ "name": "openspec-validate", "cmd": "openspec validate \"<change>\" --strict" }],
+  "migration": {
+    "pattern": "(^|/)(migrations|alembic)/",
+    "gate": null
+  },
+  "gatesDir": "gates",
+  "customGates": [],
+  "invariants": []
+}
