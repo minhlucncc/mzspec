@@ -37,6 +37,7 @@ Pick components with `--with` (`core`, `gates`, `skills`). See [docs/install.md]
 | **Scripts** (`core`) | the config-driven **gate-resolver** (maps a diff → the exact per-toolchain gates) | `.claude/workflows/lib/` |
 | **Extensions: gates** | the **gate plugin contract** + generic starter gates | `.claude/mzspec-gates/` |
 | **Extensions: skills** | engineering-practice skills (TDD, code review, security, …) | `.claude/skills/` |
+| **Tasks** (`tasks`) | pull a backlog task → seed a change, push status back: `/opsx:task-pull\|push\|log` over local-folder / GitHub Issues / Mello | `.claude/workflows/lib/task-sources/`, `.claude/commands/opsx/task-*.md` |
 | **Config** | `mzspec.config.json` — the single source of truth for your toolchains, gates, and invariants | repo root |
 
 ## Configure

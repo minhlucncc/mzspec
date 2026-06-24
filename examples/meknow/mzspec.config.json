@@ -89,6 +89,15 @@
   },
   "gatesDir": "benchmarks/gates",
   "customGates": [],
+  "taskSources": [
+    { "name": "local", "type": "local-folder", "enabled": true, "config": { "path": ".tasks" } },
+    { "name": "github", "type": "gh-issues", "enabled": false, "config": { "repo": "mezonai/mezon-bot-ai", "label": "backlog" } },
+    { "name": "mello", "type": "mello-cli", "enabled": false, "config": { "board": "<board-id>", "column": "Todo" } }
+  ],
+  "taskStatusMap": {
+    "gh-issues": { "in-progress": ["+in-progress", "-in-review"], "in-review": ["+in-review", "-in-progress"], "done": ["state:closed"] },
+    "mello-cli": { "columns": { "todo": "Todo", "in-progress": "In Progress", "in-review": "In Review", "done": "Done" } }
+  },
   "invariants": [
     "Multi-tenant: tenant_id on every table, query, cache key, and log line; cross-tenant joins are bugs",
     "ACL is server-side inside retrieve_kb; caller identity inherited, never trusted from the model",

@@ -8,7 +8,7 @@
 #   bash install.sh [options]                 # when run from a clone
 #
 # Options:
-#   --with <a,b,c>   Components to install: core,gates,skills (default: all)
+#   --with <a,b,c>   Components to install: core,gates,skills,tasks (default: all)
 #   --ref <tag>      mzspec git ref to install (default: main)
 #   --dest <dir>     Target project root (default: current directory)
 #   --force          Overwrite already-vendored files (default: skip existing)
@@ -18,7 +18,7 @@ set -euo pipefail
 
 REPO_URL="${MZSPEC_REPO_URL:-https://github.com/minhlucncc/mzspec.git}"
 RAW_BASE="${MZSPEC_RAW_BASE:-https://raw.githubusercontent.com/minhlucncc/mzspec}"
-WITH="core,gates,skills"
+WITH="core,gates,skills,tasks"
 REF="main"
 DEST="$(pwd)"
 FORCE=0
@@ -96,22 +96,36 @@ vendor() { # vendor <src-path> <dest-path>
   cp -R "$s" "$d"
   copied=$((copied + 1))
 }
-vendor_dir() { # vendor_dir <src-dir> <dest-dir> — file by file so --force is per-file
-  local s="$1" d="$2" f rel
+vendor_dir() { # vendor_dir <src-dir> <dest-dir> [exclude-regex] — file by file; skip rel paths matching exclude
+  local s="$1" d="$2" excl="${3:-}" f rel
   [ -d "$s" ] || return 0
   while IFS= read -r f; do
     rel="${f#"$s"/}"
+    if [ -n "$excl" ] && printf '%s' "$rel" | grep -Eq "$excl"; then continue; fi
     vendor "$f" "$d/$rel"
   done < <(find "$s" -type f)
 }
 
 # ---- install components --------------------------------------------------------
 
+# The task feature (task.js workflow, lib/task-sources, task-*.md commands) is a
+# separate `tasks` component, so `core` excludes it.
+TASK_EXCL='(^|/)task\.js$|(^|/)task-sources(/|$)|(^|/)task-(pull|push|log)\.md$'
+
 if has core; then
   log "installing core (workflows + opsx commands)"
-  vendor_dir "$SRC/core/workflows" "$DEST/.claude/workflows"
-  vendor_dir "$SRC/lib"            "$DEST/.claude/workflows/lib"
-  vendor_dir "$SRC/core/commands"  "$DEST/.claude/commands"
+  vendor_dir "$SRC/core/workflows" "$DEST/.claude/workflows"      "$TASK_EXCL"
+  vendor_dir "$SRC/lib"            "$DEST/.claude/workflows/lib"   "$TASK_EXCL"
+  vendor_dir "$SRC/core/commands"  "$DEST/.claude/commands"        "$TASK_EXCL"
+fi
+
+if has tasks; then
+  log "installing task sources (task-pull/push/log + adapters)"
+  vendor      "$SRC/core/workflows/task.js" "$DEST/.claude/workflows/task.js"
+  vendor_dir  "$SRC/lib/task-sources"       "$DEST/.claude/workflows/lib/task-sources"
+  for v in task-pull task-push task-log; do
+    vendor "$SRC/core/commands/opsx/$v.md" "$DEST/.claude/commands/opsx/$v.md"
+  done
 fi
 
 if has skills; then
@@ -141,6 +155,7 @@ vendor "$SRC/mzspec.config.schema.json" "$DEST/mzspec.config.schema.json"
 
 log "done — $copied file(s) installed, $skipped left in place (use --force to overwrite)."
 log "next:"
-log "  1. edit mzspec.config.json — set toolchains.<tc>.dirs/gates, gatesDir, customGates"
+log "  1. edit mzspec.config.json — set toolchains.<tc>.dirs/gates, gatesDir, customGates, taskSources"
 log "  2. add your gate scripts under your gatesDir (see .claude/mzspec-gates/CONTRACT.md)"
-log "  3. run the pipeline:  /opsx:spec  →  /opsx:spec-pr  →  /opsx:ship-plan  →  /opsx:ship-code"
+log "  3. (tasks) author a .tasks/<id>/task.md or enable a gh/mello source, then /opsx:task-pull"
+log "  4. run the pipeline:  /opsx:task-pull  →  /opsx:spec  →  /opsx:spec-pr  →  /opsx:ship-plan  →  /opsx:ship-code"

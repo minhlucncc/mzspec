@@ -111,6 +111,30 @@
       "type": "array",
       "items": { "type": "string" },
       "description": "Project hard-invariants surfaced to the code-review / security skills."
+    },
+    "taskSources": {
+      "type": "array",
+      "description": "Backlog sources for /opsx:task-pull|push|log. The first `enabled` one is the default (override with --source).",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "description": "Local identifier used by --source." },
+          "type": { "type": "string", "enum": ["local-folder", "gh-issues", "mello-cli"] },
+          "enabled": { "type": "boolean", "default": true },
+          "config": {
+            "type": "object",
+            "description": "Adapter-specific settings: local-folder {path}; gh-issues {repo,label?,limit?}; mello-cli {board,column?,limit?}.",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "taskStatusMap": {
+      "type": "object",
+      "description": "Optional per-adapter status mapping. gh-issues: normalized->tokens ('+label','-label','state:closed','state:open'). mello-cli: { columns: { <status>: <columnName> } }. Adapters use sane defaults when omitted.",
+      "additionalProperties": true
     }
   }
 }
