@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+# openspec/hooks/resolve-gates — OPTIONAL gate-resolution override.
+#
+# mzspec auto-discovers gates from your manifests (uv/go/pnpm); you only need this
+# hook for another language/framework, custom gates, or path exclusions. To enable:
+# rename to `resolve-gates` (drop `.example`) and `chmod +x`. See ./README.md.
+#
+# Contract: changed files arrive on stdin (one per line); print a gate-plan JSON to
+# stdout (exit 0). Do NOT shell back into gate-resolver.js — that recurses.
+#
+# Example: a Cargo project — run fmt/clippy/test when any Rust file changes.
+files=$(cat)
+validate='{ "name": "openspec-validate", "cmd": "openspec validate \"<change>\" --strict" }'
+if printf '%s\n' "$files" | grep -q '\.rs$'; then
+  cat <<JSON
+{ "toolchains": ["rust"],
+  "units": [{ "toolchain": "rust", "unitDir": ".",
+    "gates": [
+      { "name": "fmt",    "cmd": "cargo fmt --check" },
+      { "name": "clippy", "cmd": "cargo clippy -- -D warnings" },
+      { "name": "test",   "cmd": "cargo test" }
+    ] }],
+  "always": [ $validate ] }
+JSON
+else
+  echo "{ \"toolchains\": [], \"units\": [], \"always\": [ $validate ] }"
+fi

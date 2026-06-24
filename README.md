@@ -48,11 +48,14 @@ so no `mzspec.config.json` is required. It's idempotent (re-run anytime; `--forc
 
 ## Configure
 
-Everything project-specific lives in **`mzspec.config.json`** (validated by
-[`mzspec.config.schema.json`](mzspec.config.schema.json)). Declare your toolchains, their
-package dirs and gate commands, register your own gate scripts via `customGates`, and list
-your hard-invariants. The [`examples/meknow/`](examples/meknow/) config is a complete,
-real-world reference (a polyglot Python+Go+TS monorepo). See [docs/customize.md](docs/customize.md),
+mzspec is **zero-config**: the gate inventory is auto-discovered from your repo's own manifests
+(the `uv` workspace in `pyproject.toml`, every `go.mod`, `pnpm-workspace.yaml`), and the task
+backlog source is inferred from your `git remote`. A new package is gated the moment it has a
+manifest — nothing to maintain.
+
+To customize for **any** framework/language, drop an executable **`openspec/hooks/resolve-gates`**
+that prints a gate plan for the changed files — see [docs/hooks.md](docs/hooks.md). A legacy
+`mzspec.config.json` is still honored for back-compat. See [docs/customize.md](docs/customize.md),
 [docs/gate-plugin.md](docs/gate-plugin.md), and [docs/commit-convention.md](docs/commit-convention.md).
 
 ## How it works
