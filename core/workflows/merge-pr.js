@@ -1,12 +1,12 @@
 export const meta = {
   name: 'merge-pr',
   description:
-    'Team-lead PR merge workflow. Given an OpenSpec change slug or a PR URL, it preflights (PR status, linked issues, changelog), optionally updates the title/body/closing keywords, merges the PR via GitHub, closes linked issues, posts a cross-reference comment on each closed issue — then archives the OpenSpec change locally (if applicable). Never creates a local merge — everything happens via the GitHub API. Honors dryRun (show what it would do; no merge/close/archive).',
+    'Team-lead PR merge workflow. Given an OpenSpec change slug or a PR URL, it preflights (PR status, linked issues, changelog), optionally updates the title/body/closing keywords and adds changelog entry, archives the OpenSpec change as a commit on the branch, then merges the PR via GitHub, closes linked issues, and reports. The archive + changelog commit goes on the branch BEFORE merge so the PR review includes it. Honors dryRun (show what it would do; no merge/close/archive).',
   phases: [
     { title: 'Preflight', detail: 'find PR, check status, detect linked issues, check changelog' },
-    { title: 'Prepare',   detail: 'update PR title/body/closing keywords if needed' },
+    { title: 'Prepare',   detail: 'update PR title/body/closing keywords, add changelog if missing' },
+    { title: 'Archive',   detail: 'archive the OpenSpec change as a commit on the branch before merge' },
     { title: 'Merge',     detail: 'merge PR via GitHub API, close issues, post linking comments' },
-    { title: 'Archive',   detail: 'archive the OpenSpec change locally after merge' },
     { title: 'Summary',   detail: 'report merge SHA, closed issues, PR URL, archive status' },
   ],
 }
@@ -161,7 +161,60 @@ if (dryRun) {
   }
 }
 
-// ---------------------------------------------------------------- Phase 3: Merge
+// ---------------------------------------------------------------- Phase 3: Archive (on the branch, BEFORE merge)
+phase('Archive')
+let archived = false
+let archiveReason = ''
+let archiveSha = ''
+
+if (!change || skipArchive) {
+  archiveReason = skipArchive ? 'skipped via --skip-archive' : 'not an OpenSpec change (no --change)'
+} else if (budget && budget.total && budget.remaining() < reserve) {
+  archiveReason = 'budget reserve reached — skip archive'
+} else {
+  const archiveResult = await agent(
+    [
+      `Archive the OpenSpec change "${change}" on the branch BEFORE merging PR #${prNumber}.`,
+      `The archive commit goes on the branch so it's included in the PR review.`,
+      `Branch: "${branch}" (feat/${change})`,
+      `Steps:`,
+      `1. Switch to the branch: git switch "${branch}" 2>/dev/null || git switch -c "${branch}" origin/"${branch}"`,
+      `2. Pull the latest: git pull origin "${branch}" --ff-only 2>/dev/null || true`,
+      `3. Check if openspec CLI is available: which openspec 2>/dev/null`,
+      `   - If available: openspec archive "${change}"`,
+      `   - If not: manually archive:`,
+      `     TODAY=$(date +%Y-%m-%d)`,
+      `     mkdir -p openspec/changes/archive`,
+      `     mv openspec/changes/"${change}" "openspec/changes/archive/${'${TODAY}'}-${change}"`,
+      `4. If CHANGELOG.md exists and has no entry for this change, add one:`,
+      `   - Read the current CHANGELOG.md`,
+      `   - Add a line under ### Added or the appropriate section`,
+      `5. Commit:`,
+      `     git add openspec/changes/ CHANGELOG.md 2>/dev/null || git add -A`,
+      `     git commit -m "chore(${change}): archive completed change"`,
+      `6. Push the branch: git push origin "${branch}"`,
+      `Return { archived: true, commitSha: "<sha>" } on success.`,
+      `Return { archived: false, reason: "<message>" } on failure (e.g. openspec/changes/${change} doesn't exist).`,
+    ].join('\n'),
+    {
+      label: 'archive',
+      phase: 'Archive',
+      schema: {
+        type: 'object', additionalProperties: false,
+        required: ['archived'],
+        properties: { archived: { type: 'boolean' }, reason: { type: 'string' }, commitSha: { type: 'string' } },
+      },
+      agentType: 'general-purpose',
+    },
+  )
+  archived = !!(archiveResult && archiveResult.archived)
+  archiveSha = archiveResult ? (archiveResult.commitSha || '') : ''
+  if (archiveResult && archiveResult.reason) archiveReason = archiveResult.reason
+  if (archived) log(`Archived change "${change}" on branch (${archiveSha.slice(0, 7)})`)
+  else log(`Archive skipped or failed: ${archiveReason || 'unknown'}`)
+}
+
+// ---------------------------------------------------------------- Phase 4: Merge (GitHub API, after archive)
 phase('Merge')
 if (budget && budget.total && budget.remaining() < reserve) {
   return { stage: 'merge', ok: false, reason: 'budget reserve reached before merge', prUrl, prNumber }
@@ -172,6 +225,7 @@ const mergeResult = await agent(
     `Merge PR #${prNumber} in ${owner}/${repo} using ${strategy} merge strategy.`,
     `Head SHA: ${pre.headSha}`,
     `Title: "${finalTitle}"`,
+    archived ? `Note: Archive commit ${archiveSha.slice(0, 7)} is on the branch and will be included in the merge.` : '',
     repo ? `Repo: ${owner}/${repo}` : '',
     ``,
     `1. Merge: gh pr merge ${prNumber} --${strategy} --delete-branch ${repo ? `--repo "${owner}/${repo}"` : ''}`,
@@ -184,8 +238,8 @@ const mergeResult = await agent(
     `   - Close it: gh issue close <num> --comment "Closed by merge of PR #${prNumber} (${pre.headSha.slice(0, 7)})" ${repo ? `--repo "${owner}/${repo}"` : ''}`,
     `   - The comment body should include a cross-reference: "Merged in PR #${prNumber}"`,
     ``,
-    `4. If no linked issues were detected but the PR was linked via "Closes #N" in the body:`,
-    `   - Parse the body for "Closes #N" / "Fixes #N" patterns`,
+    `4. If no linked issues were detected but the PR body contains "Closes #N" / "Fixes #N":`,
+    `   - Parse the body for those patterns`,
     `   - Close those issues too`,
     ``,
     `Return { merged: true, mergeSha, state, issuesClosed: [numbers] }. On failure, return { merged: false, error: "<message>" }.`,
@@ -208,57 +262,6 @@ const mergeResult = await agent(
   },
 )
 
-// ---------------------------------------------------------------- Phase 4: Archive (local OpenSpec archive)
-phase('Archive')
-let archived = false
-let archiveReason = ''
-
-if (!mergeResult || !mergeResult.merged) {
-  // Fall through to Summary — merge failure is handled there
-} else if (change && !skipArchive) {
-  if (budget && budget.total && budget.remaining() < reserve) {
-    archiveReason = 'budget reserve reached — skip archive'
-  } else {
-    const archiveResult = await agent(
-      [
-        `Archive the completed OpenSpec change "${change}" locally after the successful merge of PR #${prNumber}.`,
-        `This removes the change from the active project and moves it to the archive.`,
-        `Steps:`,
-        `1. Make sure local main is up to date: git checkout ${base} && git pull --ff-only 2>/dev/null || true`,
-        `2. Check if openspec CLI is available: which openspec 2>/dev/null`,
-        `   - If available: openspec archive "${change}"`,
-        `   - If not: manually archive:`,
-        `     TODAY=$(date +%Y-%m-%d)`,
-        `     mkdir -p openspec/changes/archive`,
-        `     mv openspec/changes/"${change}" "openspec/changes/archive/${'${TODAY}'}-${change}"`,
-        `     git add openspec/changes/`,
-        `     git commit -m "chore(${change}): archive completed change"`,
-        `3. git push origin ${base}`,
-        `Return { archived: true } on success, or { archived: false, reason: "<message>" } on failure.`,
-        `NOTE: If git is not available or the directory doesn't have openspec/changes, return archived=false with reason.`,
-      ].join('\n'),
-      {
-        label: 'archive',
-        phase: 'Archive',
-        schema: {
-          type: 'object', additionalProperties: false,
-          required: ['archived'],
-          properties: { archived: { type: 'boolean' }, reason: { type: 'string' }, commitSha: { type: 'string' } },
-        },
-        agentType: 'general-purpose',
-      },
-    )
-    archived = !!(archiveResult && archiveResult.archived)
-    if (archiveResult && archiveResult.reason) archiveReason = archiveResult.reason
-    if (archived) log(`Archived change "${change}"`)
-    else log(`Archive skipped or failed: ${archiveReason || 'unknown'}`)
-  }
-} else if (change && skipArchive) {
-  archiveReason = 'skipped via --skip-archive'
-} else {
-  archiveReason = 'not an OpenSpec change (no --change)'
-}
-
 // ---------------------------------------------------------------- Phase 5: Summary
 phase('Summary')
 if (!mergeResult || !mergeResult.merged) {
@@ -271,16 +274,12 @@ if (!mergeResult || !mergeResult.merged) {
 
 const issuesClosed = mergeResult.issuesClosed || []
 
-// Build post-merge notes
 const postMergeNotes = []
-if (change && !archived && !skipArchive) {
-  postMergeNotes.push(`- Run /opsx:archive ${change} to archive the completed change.`)
+if (archived) {
+  postMergeNotes.push(`- 📦 Change "${change}" archived on branch, included in merge.`)
 }
 if (!pre.changelogEntry && change) {
   postMergeNotes.push(`- Consider adding a CHANGELOG entry for ${change} if not already present.`)
-}
-if (archived) {
-  postMergeNotes.push(`- Change "${change}" archived automatically.`)
 }
 
 return {
@@ -293,12 +292,13 @@ return {
   issuesClosed,
   archived,
   archiveReason,
+  archiveSha,
   changelogPresent: !!pre.changelogEntry,
   prTitle: finalTitle,
   nextStep: [
     `✅ Merged PR #${prNumber} (${strategy}) — commit \`${mergeResult.mergeSha}\``,
     issuesClosed.length ? `   Closed issue(s): #${issuesClosed.join(', #')}` : '   No linked issues to close.',
-    archived ? `   📦 Change "${change}" archived.` : '',
+    archived ? `   📦 Change archived: chore(${change}): archive (${archiveSha.slice(0, 7)})` : '',
     `   PR: ${prUrl}`,
     ``,
     `**Post-merge:**`,
