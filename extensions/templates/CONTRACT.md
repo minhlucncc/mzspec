@@ -1,14 +1,24 @@
-# Task-planning templates — the contract
+# Templates — the contract
 
-A **template** is an *optional*, skill-like planning guide for a recurring kind of work.
-It tells a planner **how to break that kind of change into tasks for THIS project's
-landscape** — which deliverables/sections to cover, landscape-aware splits, which gates
-verify each task, and what to skip. It is **not** the work itself, and it is **not**
-required: most changes have no matching template, and planning then proceeds normally.
+A **template** is an *optional*, skill-like guide that holds **project-specific** knowledge the
+generic core defers to. Templates come in two flavors (same `<name>/TEMPLATE.md` shape):
 
-Templates are the front-of-pipeline complement to gates. Gates answer *"given a diff,
-what must pass?"* (`extensions/gates/CONTRACT.md`); templates answer *"given this kind of
-work, how should the tasks be planned?"*.
+- **Planning playbooks** — for a recurring *kind of change*: how to break it into tasks for THIS
+  project's landscape (deliverables/sections, landscape-aware splits, which gates verify each task,
+  what to skip). Consulted during the planning/tasking phase. *(e.g. `rag-feature`, `go-worker`,
+  `migration`.)*
+- **Convention guides** — the project's *standards* that the engineering-practice skills reference
+  instead of restating: e.g. a `tdd` template holding this project's test commands, test-file
+  patterns, fixtures, and DB/service setup; a `code-review` or `security` template holding the
+  project's review checklist / invariants. The generic skills say *"see your project's `<name>`
+  template"*; the template is where the specifics live.
+
+Both are **optional**: most changes have no matching planning playbook, and a skill works without a
+convention template (it falls back to `mzspec.config.json` + the repo's existing conventions).
+
+Templates are the front-of-pipeline complement to gates. Gates answer *"given a diff, what must
+pass?"* (`extensions/gates/CONTRACT.md`); templates answer *"how does THIS project plan and practice
+this kind of work?"* — keeping the shipped skills/workflows generic and reusable.
 
 ## Shape (works like a skill)
 

@@ -1,13 +1,20 @@
-# Task-planning templates — optional, skill-like planning guides
+# Templates — optional, skill-like project guides
 
-Some kinds of change recur often enough that *how to break them into tasks* is worth
-capturing. A **template** does exactly that: a small, skill-like planning guide the agent
-consults during the planning/tasking phase. Templates are **optional** — if none matches a
-change (the common case), planning just proceeds normally.
+A **template** is a small, skill-like guide that holds **project-specific** knowledge the generic
+core defers to. Two flavors, same `<name>/TEMPLATE.md` shape:
 
-Templates are the front-of-pipeline complement to **gates**: gates answer *"given a diff,
-what must pass?"* ([gate-plugin.md](gate-plugin.md)); templates answer *"given this kind of
-work, how should the tasks be planned?"*.
+- **Planning playbooks** — *how to break a recurring kind of change into tasks* for this project.
+  Consulted during the planning/tasking phase. Optional — if none matches (the common case),
+  planning proceeds normally.
+- **Convention guides** — *this project's standards* that the engineering-practice skills reference
+  instead of restating. The headline example is **`tdd`**: your test commands, test-file patterns,
+  fixtures, and the invariants tests must respect. The generic `test-driven-development` skill says
+  *"see your project's `tdd` template"* and reads its specifics from here + `mzspec.config.json`.
+  This is how mzspec keeps the shipped skills generic while each project carries its own conventions.
+
+Templates are the front-of-pipeline complement to **gates**: gates answer *"given a diff, what must
+pass?"* ([gate-plugin.md](gate-plugin.md)); templates answer *"how does THIS project plan and
+practice this kind of work?"*.
 
 ## A template works like a skill
 
