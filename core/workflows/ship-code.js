@@ -1,8 +1,9 @@
 export const meta = {
   name: 'ship-code',
   description:
-    'Implement an OpenSpec change against an ALREADY-MERGED spec contract (stage 3-5 of the platform workflow; the spec PR from /opsx:spec-pr must be merged first). REMOTE is the default. Preflight (tools+toolchain, validate, clean tree, branch, load .handoff/<change>/plan.json, assert the contract is on base) → for EACH unit Red→Green→one commit → Verify (resolver-selected per-toolchain gates — uv/go/pnpm + ci-free-gates.sh + coverage + openspec validate, repair loop) → Review (code-review-and-quality + security-and-hardening audit; advisory on remote, gates the merge on --local) → Evidence → Sync RECONCILE (re-sync delta vs canonical; a non-empty canonical diff = the contract drifted during implementation → STOP and send back to /opsx:spec + /opsx:spec-pr). REMOTE path: CHANGELOG entry → chore commit (evidence+changelog only; specs already on base) → push + open/update the code PR with the agent review findings + a link to the merged spec PR (stops at PR opened, no auto-merge). LOCAL escape hatch (args.local=true) instead bundles the spec sync, merges feat/<change> into <base> locally, re-verifies, archives, optional tag/PR. --worktree runs all implementation phases inside an isolated git worktree (main checkout stays on main; pushes and PR creation are deferred for human local verification). Honors dryRun, only:<unit>, retryBlocked, a token budget reserve, mergeStrategy, bump, noPushMain, archive, skipReview, openPr, worktree, and base.',
+    'Implement an OpenSpec change against an ALREADY-MERGED spec contract (stage 3-5 of the platform workflow; the spec PR from /opsx:spec-pr must be merged first). REMOTE is the default. Base sync (REMOTE paths: git fetch origin <base> → switch to <base> → merge --ff-only origin/<base>, so the change is implemented on top of the latest base; never auto-stashes; --local skips it and ships from feat/<change>) → Preflight (tools+toolchain, validate, clean tree, branch, load .handoff/<change>/plan.json, assert the contract is on base) → for EACH unit Red→Green→one commit → Verify (resolver-selected per-toolchain gates — uv/go/pnpm + ci-free-gates.sh + coverage + openspec validate, repair loop) → Review (code-review-and-quality + security-and-hardening audit; advisory on remote, gates the merge on --local) → Evidence → Sync RECONCILE (re-sync delta vs canonical; a non-empty canonical diff = the contract drifted during implementation → STOP and send back to /opsx:spec + /opsx:spec-pr). REMOTE path: CHANGELOG entry → chore commit (evidence+changelog only; specs already on base) → push + open/update the code PR with the agent review findings + a link to the merged spec PR (stops at PR opened, no auto-merge). LOCAL escape hatch (args.local=true) instead bundles the spec sync, merges feat/<change> into <base> locally, re-verifies, archives, optional tag/PR. --worktree runs all implementation phases inside an isolated git worktree (main checkout stays on <base>; pushes and PR creation are deferred for human local verification). Honors dryRun, only:<unit>, retryBlocked, a token budget reserve, mergeStrategy, bump, noPushMain, archive, skipReview, openPr, worktree, and base.',
   phases: [
+    { title: 'Base sync',           detail: 'remote paths: git fetch origin <base> → switch to <base> → merge --ff-only origin/<base> (sync base to origin before preflight; clean tree required, never auto-stash; --local skips — it ships from feat/<change>)' },
     { title: 'Preflight',           detail: 'tools+toolchain, validate, branch, load handoff (--local checks base + branch slug match)' },
     { title: 'Implement',           detail: 'per unit Red→Green→one commit (task-by-task). --worktree: also verify, review, evidence, sync, changelog, chore commit all in isolated worktree; then /opsx:ship-pr for PR' },
     { title: 'Verify',              detail: 'resolver-selected per-toolchain gates (uv/go/pnpm) + ci-free-gates.sh + coverage + openspec validate, repair loop' },
@@ -66,7 +67,7 @@ if (!change || typeof change !== 'string') {
 if (!/^[a-z0-9][a-z0-9-]*$/.test(change)) throw new Error('Unsafe change name (expected kebab-case slug): ' + change)
 if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Unsafe date (expected YYYY-MM-DD): ' + date)
 if (onlyPair && !/^[0-9]{1,3}$/.test(onlyPair)) throw new Error('Unsafe only (expected a pair ordinal like "02"): ' + onlyPair)
-if (local && !/^[A-Za-z0-9._/-]+$/.test(base)) throw new Error('Unsafe base branch: ' + base)
+if (!/^[A-Za-z0-9._/-]+$/.test(base)) throw new Error('Unsafe base branch: ' + base)
 const DATE = date || 'Unreleased'
 const branch = `feat/${change}`
 const handoffDir = `.handoff/${change}`
@@ -269,6 +270,45 @@ const FINALIZE_LOCAL = {
   },
 }
 
+// ---------------------------------------------------------------- Phase 0: Base sync
+// Sync the base branch to origin BEFORE preflight so the change is built on top of the
+// latest <base>: fetch origin, switch to <base>, fast-forward to origin/<base>. Then the
+// Preflight phase creates/checks out feat/<change> from the freshened <base>.
+// REMOTE paths only (default + --worktree). The --local escape hatch is the offline path:
+// it must already be ON feat/<change> (its preflight asserts this) and handles its own base
+// in the Merge phase, so we never switch it away here. Never auto-stashes / force-resets.
+const BASE_SYNC = {
+  type: 'object', additionalProperties: false,
+  required: ['ok', 'reason', 'base', 'baseSha', 'synced'],
+  properties: {
+    ok: { type: 'boolean' },
+    reason: { type: 'string' },
+    base: { type: 'string' },
+    baseSha: { type: 'string', description: 'sha of <base> after the fast-forward' },
+    synced: { type: 'boolean', description: 'true when local <base> now equals origin/<base>' },
+  },
+}
+if (!local) {
+  phase('Base sync')
+  const sync = await agent(
+    [
+      `Sync the base branch "${base}" to origin before shipping change "${change}". Use Bash ONLY (git). ${TOOLCHAIN_NOTE}`,
+      `All git ops run INSIDE the platform submodule — never touch the superproject. Steps:`,
+      `1. git fetch origin "${base}" --prune. If there is no "origin" remote or "${base}" does not exist on origin, ok=false, reason="origin/${base} not found — push ${base} first or choose another base", STOP.`,
+      `2. CLEAN-TREE GUARD: git status --porcelain. Ignore anything under .claude/ and .handoff/ (in-flight workflow dev + the gitignored handoff). If ANY other tracked file is dirty, ok=false, reason="uncommitted tracked changes; commit or stash before ship (base sync needs a clean tree)", STOP. NEVER auto-stash.`,
+      `3. Switch to the base branch: if a local "${base}" exists, \`git switch "${base}"\`; otherwise create it tracking origin: \`git switch -c "${base}" --track "origin/${base}"\`. If the switch fails, ok=false+reason+STOP.`,
+      `4. Fast-forward to origin: \`git merge --ff-only "origin/${base}"\`. If this is NOT a fast-forward (local "${base}" has diverged from origin/${base}), ok=false, reason="local ${base} has diverged from origin/${base}; reconcile it manually (e.g. git reset --hard origin/${base} if the local-only commits are disposable), then re-run", STOP. Do NOT force or merge non-ff.`,
+      `5. baseSha = git rev-parse HEAD. synced=true, ok=true. (The next phase creates/checks out feat/${change} from this freshened ${base}.)`,
+      `Return the structured result; implement nothing here.`,
+    ].join('\n'),
+    { schema: BASE_SYNC, label: 'base-sync', phase: 'Base sync', agentType: 'general-purpose' },
+  )
+  if (!sync || !sync.ok) {
+    return { stage: 'base-sync', ok: false, reason: sync ? sync.reason : 'base-sync agent returned null', change, branch, base }
+  }
+  log(`base sync ok — ${base} fast-forwarded to origin/${base} (${(sync.baseSha || '').slice(0, 8)})`)
+}
+
 // ---------------------------------------------------------------- Phase 1: Preflight (load handoff)
 phase('Preflight')
 const pre = await agent(
@@ -288,7 +328,7 @@ const pre = await agent(
       ? `   - LOCAL PATH: the working branch MUST be "${branch}" (a feat/<change> branch). If currently on "${base}" with no commits ahead, ok=false, reason="on <base> with no commits; create ${branch} and ship from there". If on any other branch, ok=false, reason="currently on <other>; switch to ${branch}". If the branch is named e.g. feat/cNNNN-wrong-slug but the change slug is ${change}, ok=false, reason="branch slug does not match change slug; rename with: git branch -m feat/${change}". If you are already on ${branch}, branchReady=true. Do NOT create the branch — it must exist (the implement phase already worked on it).`
       : worktree
         ? `   - WORKTREE PATH: branch will be created inside the worktree. branchReady=true, branchName="${branch}". Skip branch creation.`
-        : `   - Create/checkout branch "${branch}" (git checkout -b "${branch}" or git checkout "${branch}"); confirm not on main; branchReady=true.`,
+        : `   - Create/checkout branch "${branch}" (git checkout -b "${branch}" from the freshly-synced "${base}", or git checkout "${branch}" if it already exists); confirm not on "${base}"; branchReady=true.`,
     local ? `7. For LOCAL PATH: also check the base branch exists (git rev-parse --verify ${base}); capture its sha as baseSha for the merge phase. If base does not exist, ok=false+reason+STOP.` : ``,
     `8. SPEC-MERGED GATE: this stage implements AGAINST an already-merged spec contract (the spec PR from /opsx:spec-pr lands canonical specs on ${base} first). For each capability under the change's delta specs, confirm a canonical openspec/specs/<capability>/spec.md exists on this branch. If a delta ADDS a capability whose canonical spec is absent, the spec PR was not merged → ok=false, reason="spec PR not merged — run /opsx:spec-pr ${change}, merge it, then branch ${branch} from an updated ${base}". (A MODIFIED-but-unsynced spec is caught later by the Sync reconcile drift guard.)`,
     `Return the structured result; do not implement anything here.`,
@@ -352,20 +392,20 @@ if (worktree) {
       `- Tasks: ${pre.tasksPath}`,
       `- Delta specs: ${specPathsStr}`,
       `- Evidence dir: ${pre.changeRoot}/evidence/`,
-      `- All existing code is on base branch "main" (this worktree was created from it)`,
+      `- All existing code is on base branch "${base}" (this worktree was created from it)`,
       ``,
       `HANDOFF (units to implement):`,
       handoffSummary,
       ``,
       `TOOLCHAIN: ensure uv, go (1.${REQUIRED_GO_MINOR}+; try \`which -a go\` / \`ls /opt/homebrew/Cellar/go@*/bin/go\` if stale), pnpm, openspec, node are on PATH.`,
-      `Resolve gates per touched file: \`git diff --name-only main...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin\`.`,
+      `Resolve gates per touched file: \`git diff --name-only ${base}...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin\`.`,
       `DB-dependent pytest skips without TEST_DATABASE_URL/pgvector (skip != failure).`,
       ``,
       `STEPS:`,
       ``,
       `1. WORKTREE SETUP:`,
       `   cd into the worktree root (pwd)`,
-      `   git switch -c feat/${change} main`,
+      `   git switch -c feat/${change} ${base}`,
       ``,
       `2. For EACH runnable unit, implement test-first:`,
       `   a. RED: Write ALL test deliverables for that unit. Run them — they MUST FAIL.`,
@@ -377,13 +417,13 @@ if (worktree) {
       `   d. Move to next unit.`,
       ``,
       `3. FULL VERIFY (resolver-driven):`,
-      `   - git diff --name-only main...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin → run EVERY printed gate`,
+      `   - git diff --name-only ${base}...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin → run EVERY printed gate`,
       `   - openspec validate "${change}" --strict (best-effort)`,
       `   - If a gate fails, fix and re-run (max ${maxRepairs} repair attempts)`,
       `   - Capture gatesRun array and coverage string`,
       ``,
       `4. CODE REVIEW:`,
-      `   - git diff main..HEAD --stat; git diff main..HEAD -- . ':(exclude)openspec/' ':(exclude).handoff/'`,
+      `   - git diff ${base}..HEAD --stat; git diff ${base}..HEAD -- . ':(exclude)openspec/' ':(exclude).handoff/'`,
       `   - Categorize findings: blocker/required/nit/fyi on axes: correctness/readability/architecture/security/performance`,
       `   - BLOCKER: correctness bug; security issue; breaks platform invariant; contradicts merged spec`,
       `   - PASS = no blockers AND <= 2 required findings`,
@@ -912,7 +952,7 @@ const fin = await agent(
     dryRun
       ? `3. DRY RUN: stop after the chore commit — do NOT run git push and do NOT run gh. Set pushed=false, prUrl=null, prExisted=false, note it was a dry run.`
       : `3. Push: git push -u origin "${branch}".`,
-    dryRun ? `` : `4. Existing PR? gh pr view "${branch}" --json url,state 2>/dev/null. If OPEN, the push updated it (prExisted=true, use its url). Else gh pr create --base main --head "${branch}" --title "feat: ${title}" --body <body> with: the proposal's what-and-why; a "## Spec contract" line noting the spec was reviewed & merged via its spec PR (find it: gh pr list --search "spec(${change})" --state merged --json url,title) and that this code PR implements that locked contract; a "## Agent review" section = the code+security pre-review verdict (${review ? review.verdict : 'n/a'}) and its findings (${review && review.findings ? review.findings.length : 0}) by severity (blockers/required first) for the human approver; a "## Evidence" section linking ${evidenceDir} + the gates (${gatesRun.join(', ')}) + coverage (${coverage || 'n/a'}); the per-task commits (${commits.map((c) => 'task ' + c.pair).join(', ')}); the CHANGELOG bullet(s); "Skills applied: ${allSkills.join(', ')}"; and a final "🤖 Generated with [Claude Code](https://claude.com/claude-code)". Capture prUrl.`,
+    dryRun ? `` : `4. Existing PR? gh pr view "${branch}" --json url,state 2>/dev/null. If OPEN, the push updated it (prExisted=true, use its url). Else gh pr create --base "${base}" --head "${branch}" --title "feat: ${title}" --body <body> with: the proposal's what-and-why; a "## Spec contract" line noting the spec was reviewed & merged via its spec PR (find it: gh pr list --search "spec(${change})" --state merged --json url,title) and that this code PR implements that locked contract; a "## Agent review" section = the code+security pre-review verdict (${review ? review.verdict : 'n/a'}) and its findings (${review && review.findings ? review.findings.length : 0}) by severity (blockers/required first) for the human approver; a "## Evidence" section linking ${evidenceDir} + the gates (${gatesRun.join(', ')}) + coverage (${coverage || 'n/a'}); the per-task commits (${commits.map((c) => 'task ' + c.pair).join(', ')}); the CHANGELOG bullet(s); "Skills applied: ${allSkills.join(', ')}"; and a final "🤖 Generated with [Claude Code](https://claude.com/claude-code)". Capture prUrl.`,
     `Return the structured result. If push/gh fails, set pushed=false/prUrl=null and explain in notes — commits stand on the local branch.`,
   ].filter(Boolean).join('\n'),
   { schema: FINALIZE, label: dryRun ? 'finalize (dry-run)' : 'finalize+pr', phase: 'PR', agentType: 'general-purpose' },

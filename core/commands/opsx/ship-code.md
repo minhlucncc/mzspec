@@ -15,14 +15,22 @@ path (`--local`) reviews → merges `feat/<change>` into `main` locally → arch
 and with `--openPr` pushes the branch + opens a PR for the record. This is the second
 half of `/opsx:ship`.
 
-**Input**: Optionally a change name (e.g., `/opsx:ship-code c0006-…`). `--dry-run`
+**Input**: Optionally a change name (e.g., `/opsx:ship-code c0006-…`). `--base <branch>`
+sets the branch the change is built on and the PR targets (default `main`). `--dry-run`
 makes the per-unit commits locally but skips push/PR/merge. `--only <unit>` runs a
 single unit (e.g. `--only 02`); `--retry-blocked` re-runs blocked units. `--local`,
-`--openPr` select the local-merge + PR path (merge into `main` locally, then optionally
+`--openPr` select the local-merge + PR path (merge into `<base>` locally, then optionally
 open a PR for the record).
 `--worktree` runs implementation inside an isolated git worktree so the main checkout
-stays on `main`. Stops after the chore commit (no push, no PR) for human local
+stays on `<base>`. Stops after the chore commit (no push, no PR) for human local
 verification (remote path only).
+
+On the **remote** paths, a **Base sync** phase runs before preflight: `git fetch origin
+<base>`, switch to `<base>`, `git merge --ff-only origin/<base>` so the change is built
+on the latest base. It needs a clean tree and a fast-forwardable base — it never
+auto-stashes or force-resets; either condition stops the ship with an actionable reason.
+(`--local` skips this — it ships from an already-checked-out `feat/<change>` and merges
+into its base in the Merge phase.)
 
 **Steps**
 
@@ -37,9 +45,10 @@ verification (remote path only).
 
 3. **Launch the Workflow** (date from context):
    ```
-   Workflow({ name: 'ship-code', args: { change: '<name>', date: '<YYYY-MM-DD>', dryRun: <bool>, only: '<unit?>', retryBlocked: <bool?>, local: <bool?>, openPr: <bool?>, worktree: <bool?> } })
+   Workflow({ name: 'ship-code', args: { change: '<name>', date: '<YYYY-MM-DD>', base: '<branch?>', dryRun: <bool>, only: '<unit?>', retryBlocked: <bool?>, local: <bool?>, openPr: <bool?>, worktree: <bool?> } })
    ```
-   Phases: **Preflight** (toolchain check, validate, clean tree, branch
+   Phases: **Base sync** (fetch origin + switch to `<base>` + `merge --ff-only
+   origin/<base>`) → **Preflight** (toolchain check, validate, clean tree, branch
    `feat/<name>`, load handoff units) → **Implement in worktree** (when `--worktree`:
    all phases in isolated git worktree; stops after chore commit — no push, no PR)
    / **Implement** (per unit: Red → Green → one commit) → **Verify** (resolver-selected

@@ -13,27 +13,29 @@ review, evidence, reconcile, and open the code PR).
 
 > **Prerequisite (stage 2): the spec PR must already be merged.** Run `/opsx:spec` until it
 > APPROVES, then `/opsx:spec-pr` to open the spec PR; a human merges it so the canonical
-> `openspec/specs/` contract is on `main` **before** implementation. `ship-code`'s Preflight
+> `openspec/specs/` contract is on the base branch **before** implementation. `ship-code`'s Preflight
 > asserts the contract is present and its Sync phase only **reconciles** (a contract that
 > drifts during implementation stops the ship and goes back to `/opsx:spec` + `/opsx:spec-pr`).
 
 **Two paths** are offered at the top:
 
 - **Remote PR (gh pr create)** — **recommended / default**. Branches `feat/<change>` from the
-  updated `main` → per-unit commits → verify → agent code+security review (posted on the PR)
+  freshened base (`<base>`, default `main`) → per-unit commits → verify → agent code+security review (posted on the PR)
   → evidence → reconcile → push + open the code PR with the review findings and a link to the
   merged spec PR. **Ends at PR opened; a human reviews & merges**, then `/opsx:address-review`
   handles feedback and `/opsx:archive` finalizes.
 - **Local merge (`--local`, no gh)** — escape hatch for trivial/solo changes. Bundles the spec
-  sync, squash-merges into `main` locally, archives, optional tag. Gates the merge on the agent
+  sync, squash-merges into the base branch locally, archives, optional tag. Gates the merge on the agent
   review. Use only when a PR gate is genuinely unnecessary.
 
-**Input**: Optionally a change name (e.g., `/opsx:ship c0006-…`). `--dry-run`
+**Input**: Optionally a change name (e.g., `/opsx:ship c0006-…`). `--base <branch>`
+sets the branch the change is built on and the PR targets (default `main`); when
+omitted, step 0 asks. `--dry-run`
 on the remote path makes the per-task commits locally but skips push + PR;
 on the local path, refuses merge and stops at Verify (the branch + per-task
 commits are still produced).
 `--worktree` runs the implementation phases inside an isolated git worktree so the
-main checkout stays on `main`, and **stops after implementation** (no push, no PR)
+main checkout stays on the base branch, and **stops after implementation** (no push, no PR)
 so you can verify locally before creating the PR. Only valid for the remote PR path.
 
 **Steps**
@@ -54,8 +56,21 @@ so you can verify locally before creating the PR. Only valid for the remote PR p
 
    **On Remote** (both plain and worktree), the legacy behavior is preserved unchanged.
 
+0b. **Base branch.** Unless `--base <branch>` was passed, **AskUserQuestion**: "Which
+   branch should this change be based off (and the PR target)?" with options:
+   - `main` — **recommended / default**
+   - `develop`
+   - *Other* — free-text any existing branch name
+
+   Capture the answer as `base` (used for both ship paths). On the **remote** paths,
+   `ship-code`'s first phase (**Base sync**) fetches origin, switches to `<base>`, and
+   `git merge --ff-only origin/<base>` so the change builds on the freshest base; a dirty
+   tree or a non-fast-forwardable base stops the ship (it never auto-stashes or
+   force-resets). `--local` skips Base sync (it ships from `feat/<change>` and merges into
+   `<base>` in its Merge phase).
+
 1. **Select the change** (infer from context / `openspec list --json` +
-   AskUserQuestion). Announce "Shipping change: <name> via <path> path".
+   AskUserQuestion). Announce "Shipping change: <name> via <path> path onto <base>".
 
 2. **Plan.** Launch
    `Workflow({ name: 'ship-plan', args: { change, date, local: <true|false> } })`.
@@ -69,10 +84,11 @@ so you can verify locally before creating the PR. Only valid for the remote PR p
 
 4. **Execute.** Launch
    `Workflow({ name: 'ship-code', args: { change, date, dryRun,
-     local: <true|false>, worktree: <true|false>, base: 'main',
+     local: <true|false>, worktree: <true|false>, base: <base>,
      mergeStrategy, bump, noPushMain, archive, skipReview } })`.
 
-   **Remote path** branches from the updated `main` → runs each unit Red→Green→one commit →
+   **Remote path** Base sync (fetch + ff-merge `<base>`) → branches from the freshened
+   `<base>` → runs each unit Red→Green→one commit →
    verify → agent code+security review → evidence → **reconcile** (delta vs the already-merged
    canonical specs; drift → stop) → changelog → push + `gh pr create` with the review findings
    + a link to the merged spec PR. Opens the PR and **stops**.
@@ -81,17 +97,17 @@ so you can verify locally before creating the PR. Only valid for the remote PR p
    (branch → implement → verify → review → evidence → sync → changelog → chore commit)
    runs inside an isolated `git worktree`. **Stops after the chore commit** — no push,
    no PR. You verify locally (touch point 3), then run `/opsx:ship-pr <change>` to
-   push + create the PR (touch point 4). The main checkout stays on `main` throughout.
+   push + create the PR (touch point 4). The main checkout stays on `<base>` throughout.
 
    **Local path** branches → runs each pair Red→Green→one commit → verify →
    Local review (code-review-and-quality + security-and-hardening, gated on
-   `--no-review`) → pre-merge evidence → `git switch main && git merge --<strategy>
+   `--no-review`) → pre-merge evidence → `git switch <base> && git merge --<strategy>
    feat/<change>` (conventional commit, signed off, never `git add -A`,
-   never auto-resolves conflicts) → re-runs verify on `main` post-merge →
+   never auto-resolves conflicts) → re-runs verify on `<base>` post-merge →
    sync delta specs → archives `openspec/changes/<change>/` →
    `openspec/changes/archive/<date>-<change>/` → optional semver tag →
    chore commit (evidence + sync + archive + changelog + post-merge.md) →
-   `git branch -D feat/<change>` → optional `git push origin main` (when
+   `git branch -D feat/<change>` → optional `git push origin <base>` (when
    `--push-main`).
 
 5. **Relay the result.**
@@ -102,7 +118,7 @@ so you can verify locally before creating the PR. Only valid for the remote PR p
 
    **Remote-worktree**: branch, per-task commits, agent review findings, evidence dir,
    and instructions to verify locally then push + create the PR. The main checkout was
-   never switched away from `main`. The worktree was cleaned up.
+   never switched away from `<base>`. The worktree was cleaned up.
 
    **Local**: mergeSha + baseSha, pre-merge gates + coverage, review verdict +
    findings, post-merge gates + coverage, sync state, archive path, tag (if
