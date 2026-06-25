@@ -1,11 +1,11 @@
 export const meta = {
   name: 'merge-pr',
   description:
-    'Team-lead PR merge workflow. Given an OpenSpec change slug or a PR URL, it preflights (PR status, linked issues, changelog), optionally updates the title/body/closing keywords and adds changelog entry, archives the OpenSpec change as a commit on the branch, then merges the PR via GitHub and closes linked issues. After the merge it runs an AGENT HOOK RUNNER phase that fires the lifecycle event (ticket comment + status via lifecycle.js, the executable on-<event> shell hook, and an optional agent-form on-<event>.agent.md hook). The archive + changelog commit goes on the branch BEFORE merge so the PR review includes it. Honors dryRun (show what it would do; no merge/close/archive/hooks).',
+    'Team-lead PR merge workflow. Given an OpenSpec change slug or a PR URL, it preflights (PR status, linked issues, changelog), optionally updates the title/body/closing keywords and adds changelog entry, archives the OpenSpec change as a commit on the branch (CODE PRs only — a SPEC PR from /opsx:spec-pr is never archived, since the change is not shipped yet and must stay active for the code PR), then merges the PR via GitHub and closes linked issues. After the merge it runs an AGENT HOOK RUNNER phase that fires the lifecycle event (ticket comment + status via lifecycle.js, the executable on-<event> shell hook, and an optional agent-form on-<event>.agent.md hook). The archive + changelog commit goes on the branch BEFORE merge so the PR review includes it. Honors dryRun (show what it would do; no merge/close/archive/hooks).',
   phases: [
     { title: 'Preflight', detail: 'find PR, check status, detect linked issues, check changelog' },
     { title: 'Prepare',   detail: 'update PR title/body/closing keywords, add changelog if missing' },
-    { title: 'Archive',   detail: 'archive the OpenSpec change as a commit on the branch before merge' },
+    { title: 'Archive',   detail: 'archive the change on the branch before merge (CODE PRs only; skipped for spec PRs)' },
     { title: 'Merge',     detail: 'merge PR via GitHub API, close linked issues' },
     { title: 'Hooks',     detail: 'agent hook-runner — fire the lifecycle event (ticket comment, status, shell + agent-form hooks)' },
     { title: 'Summary',   detail: 'report merge SHA, closed issues, PR URL, archive + hook status' },
@@ -38,6 +38,7 @@ if (!['squash', 'merge', 'rebase'].includes(strategy)) {
 }
 
 let branch = change ? `feat/${change}` : null
+let isSpecPr = false              // true when merging a /opsx:spec-pr (spec/<slug>) — never archive
 let prNumber, prUrl, owner
 
 // ---------------------------------------------------------------- Phase 1: Preflight
@@ -110,6 +111,14 @@ if (!change && pre.headRefName) {
   }
 }
 
+// Detect a SPEC PR (from /opsx:spec-pr): head branch `spec/<slug>` or title `spec(<slug>): …`.
+// A spec PR only lands the contract on `base`; the change is NOT shipped yet, so it must
+// stay ACTIVE — never archive it here. Archiving is owned by the CODE PR merge (feat/<slug>).
+isSpecPr = /^spec\//.test(pre.headRefName || '') || /^spec\(/.test(pre.title || '')
+if (isSpecPr) {
+  log(`PR #${prNumber} is a SPEC PR (${pre.headRefName || pre.title}) — archive will be skipped; the change stays active until its code PR ships`)
+}
+
 // ---------------------------------------------------------------- Phase 2: Prepare — update PR title/body if requested
 phase('Prepare')
 if (budget && budget.total && budget.remaining() < reserve) {
@@ -180,8 +189,11 @@ let archived = false
 let archiveReason = ''
 let archiveSha = ''
 
-if (!change || skipArchive) {
-  archiveReason = skipArchive ? 'skipped via --skip-archive' : 'not an OpenSpec change (no --change)'
+if (!change || skipArchive || isSpecPr) {
+  archiveReason = isSpecPr
+    ? 'spec PR — change not shipped yet; archive deferred to the code PR merge'
+    : skipArchive ? 'skipped via --skip-archive' : 'not an OpenSpec change (no --change)'
+  log(`Archive skipped: ${archiveReason}`)
 } else if (budget && budget.total && budget.remaining() < reserve) {
   archiveReason = 'budget reserve reached — skip archive'
 } else {
