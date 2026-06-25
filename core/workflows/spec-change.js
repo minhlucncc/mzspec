@@ -4,6 +4,7 @@ export const meta = {
     'Author and quality-assure an OpenSpec change spec: draft (if missing) → cross-validate → revise → report. Loads an existing change (or scaffolds one with the cNNNN- numbering convention and drafts its artifacts), then fans out one read-only critic agent per spec-review axis IN PARALLEL (Structure/validity, Clarity/KISS, Testability, Minimality/YAGNI, Consistency/DRY, Completeness), collects severity-labelled findings, and runs a revise loop that fixes Blocker/Required items and re-runs openspec validate --strict until clean (or maxRevisions). Writes openspec/changes/<change>/review/REVIEW.md and returns the verdict. Honors dryRun (review-only, no edits), reserveTokens, and maxRevisions. Mirrors the ship workflow idiom; the spec-layer counterpart of code review.',
   phases: [
     { title: 'Preflight', detail: 'openspec status + validate; load or scaffold the change' },
+    { title: 'Hooks', detail: 'record ticket in proposal frontmatter + fire before-spec agent hook (best-effort)' },
     { title: 'Cross-validate', detail: 'one read-only critic per axis, in parallel' },
     { title: 'Revise', detail: 'fix Blocker/Required findings, re-validate (skipped on dryRun)' },
     { title: 'Report', detail: 'write review/REVIEW.md + verdict' },
@@ -19,16 +20,43 @@ const date = A.date // YYYY-MM-DD — passed in; Date.now()/new Date() are unava
 const dryRun = !!A.dryRun // review-only: produce findings + report, make NO edits
 const reserve = A.reserveTokens || 50000
 const maxRevisions = A.maxRevisions ?? 2
+const ticket = (A.ticket && A.ticket !== true) ? String(A.ticket) : '' // optional backlog ticket (URL or #number) → proposal.md frontmatter
 
 if (!change || typeof change !== 'string') {
-  throw new Error('spec-change requires args { change, date, dryRun?, slug?, maxRevisions? }; got typeof=' + (typeof args) + ' keys=' + Object.keys(A).join(','))
+  throw new Error('spec-change requires args { change, date, dryRun?, slug?, maxRevisions?, ticket? }; got typeof=' + (typeof args) + ' keys=' + Object.keys(A).join(','))
 }
 if (!/^[a-z][a-z0-9-]*$/.test(change)) throw new Error('Unsafe change name (must start with a letter, kebab-case): ' + change)
 if (slug && !/^[a-z0-9][a-z0-9-]*$/.test(slug)) throw new Error('Unsafe slug (kebab-case): ' + slug)
 if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Unsafe date (expected YYYY-MM-DD): ' + date)
+if (ticket && !/^(?:#?\d+|https?:\/\/[^\s]+)$/.test(ticket)) throw new Error('Unsafe ticket (expected #N, N, or a URL): ' + ticket)
 
 const SKILL = (name) => `the \`${name}\` skill (.claude/skills/${name}/SKILL.md)`
 const reviewSkill = SKILL('spec-review-and-quality')
+
+// ---------------------------------------------------------------- agent-form lifecycle hook (best-effort)
+// Workflow bodies cannot require() shared libs, so this compact runner is inlined per workflow.
+// It runs the repo-defined openspec/hooks/on-<event>.agent.md (natural-language, tool-using) so a
+// project can wire lifecycle events to a backlog board WITHOUT a built-in adapter or config.
+const HOOK_RESULT = {
+  type: 'object', additionalProperties: false, required: ['found', 'ran'],
+  properties: { found: { type: 'boolean' }, ran: { type: 'boolean' }, summary: { type: 'string' }, errors: { type: 'array', items: { type: 'string' } } },
+}
+async function runAgentHook(event, contextLines) {
+  const r = await agent(
+    [
+      `AGENT-FORM LIFECYCLE HOOK — event "${event}", OpenSpec change "${change}". BEST-EFFORT: NEVER fail; capture problems in errors[].`,
+      `Context:`,
+      ...contextLines,
+      `1. If openspec/hooks/on-${event}.agent.md does NOT exist → return { found:false, ran:false }. STOP (normal no-op — most repos have no hook).`,
+      `2. If it exists → READ it and FOLLOW its instructions as your task, using the context above. It may use gh/git/node. It typically reads the backlog ticket from openspec/changes/${change}/proposal.md frontmatter ("ticket:") and updates the board card. Summarise what you actually did in summary; set found:true and ran:true (or ran:false + an errors[] entry if its instructions failed).`,
+      `Return { found, ran, summary, errors }.`,
+    ].join('\n'),
+    { schema: HOOK_RESULT, label: `hook:${event}`, phase: 'Hooks', agentType: 'general-purpose' },
+  )
+  if (r && r.ran) log(`Agent hook on-${event}.agent.md: ${r.summary || 'ran'}`)
+  else if (r && r.found) log(`Agent hook on-${event}.agent.md: failed${r.errors && r.errors.length ? ' — ' + r.errors.join('; ') : ''}`)
+  return r
+}
 
 // ---------------------------------------------------------------- the six review axes (single source of truth)
 const AXES = [
@@ -123,6 +151,27 @@ const CONTEXT = [
   pre.specPaths && pre.specPaths.length ? `- delta specs: ${pre.specPaths.join(', ')}` : '- delta specs: (none)',
 ].filter(Boolean).join('\n')
 log(`preflight ok — ${change}: ${pre.specPaths.length} delta spec(s); validate ${pre.validatePass ? 'passed' : 'NOT passing'}`)
+
+// ---------------------------------------------------------------- Phase 1b: Link & before-spec hook (best-effort, skipped on dryRun)
+// Capture the backlog ticket into proposal.md frontmatter (the SSOT the lifecycle hooks read),
+// then fire the before-spec agent-form hook so the board card is updated when spec authoring starts.
+if (!dryRun) {
+  phase('Hooks')
+  if (ticket && pre.proposalPath) {
+    const linkRes = await agent(
+      [
+        `Ensure the backlog ticket is recorded in the proposal frontmatter for OpenSpec change "${change}". BEST-EFFORT — never fail.`,
+        `File: ${pre.proposalPath}. Ticket: "${ticket}".`,
+        `1. Read the file. If it already has a YAML frontmatter block ("---" … "---") with a "ticket:" key, DO NOTHING (never overwrite an existing value) → { wrote:false, reason:"already set" }.`,
+        `2. Else add "ticket: ${ticket}" to the frontmatter: if a frontmatter block exists, insert the key into it; if not, prepend a new block "---\\nticket: ${ticket}\\n---\\n" above the content. Preserve all existing content. → { wrote:true }.`,
+        `Return { wrote, reason }.`,
+      ].join('\n'),
+      { schema: { type: 'object', additionalProperties: false, required: ['wrote'], properties: { wrote: { type: 'boolean' }, reason: { type: 'string' } } }, label: 'link:ticket', phase: 'Hooks', agentType: 'general-purpose' },
+    )
+    if (linkRes && linkRes.wrote) log(`Recorded ticket ${ticket} in proposal frontmatter`)
+  }
+  await runAgentHook('before-spec', [`- change: ${change}`, `- title: ${title}`])
+}
 
 // ---------------------------------------------------------------- Phase 2: Cross-validate (parallel critics)
 phase('Cross-validate')
