@@ -89,6 +89,31 @@ function skillNote(p) {
 }
 const allSkills = Array.from(new Set(Object.values(SKILLS).flat()))
 
+// ---------------------------------------------------------------- agent-form lifecycle hook (best-effort)
+// Workflow bodies cannot require() shared libs, so this compact runner is inlined per workflow.
+// Runs the repo-defined openspec/hooks/on-<event>.agent.md so a project can wire lifecycle events
+// to a backlog board WITHOUT a built-in adapter or config.
+const HOOK_RESULT = {
+  type: 'object', additionalProperties: false, required: ['found', 'ran'],
+  properties: { found: { type: 'boolean' }, ran: { type: 'boolean' }, summary: { type: 'string' }, errors: { type: 'array', items: { type: 'string' } } },
+}
+async function runAgentHook(event, contextLines) {
+  const r = await agent(
+    [
+      `AGENT-FORM LIFECYCLE HOOK — event "${event}", OpenSpec change "${change}". BEST-EFFORT: NEVER fail; capture problems in errors[].`,
+      `Context:`,
+      ...contextLines,
+      `1. If openspec/hooks/on-${event}.agent.md does NOT exist → return { found:false, ran:false }. STOP (normal no-op — most repos have no hook).`,
+      `2. If it exists → READ it and FOLLOW its instructions as your task, using the context above. It may use gh/git/node. It typically reads the backlog ticket from openspec/changes/${change}/proposal.md frontmatter ("ticket:") and updates the board card. Summarise what you actually did in summary; set found:true and ran:true (or ran:false + an errors[] entry if its instructions failed).`,
+      `Return { found, ran, summary, errors }.`,
+    ].join('\n'),
+    { schema: HOOK_RESULT, label: `hook:${event}`, phase: 'Hooks', agentType: 'general-purpose' },
+  )
+  if (r && r.ran) log(`Agent hook on-${event}.agent.md: ${r.summary || 'ran'}`)
+  else if (r && r.found) log(`Agent hook on-${event}.agent.md: failed${r.errors && r.errors.length ? ' — ' + r.errors.join('; ') : ''}`)
+  return r
+}
+
 // ---------------------------------------------------------------- schemas
 const TASKREF = {
   type: 'object', additionalProperties: false, required: ['id', 'role', 'status', 'file', 'deliverables', 'verify'],
@@ -352,6 +377,10 @@ if (onlyPair && !pairs.length) {
 }
 const runnable = pairs.filter((p) => !p.allDone || retryBlocked || onlyPair)
 log(`preflight ok — ${pre.pairs.length} pair(s); running ${runnable.length}${dryRun ? ' (dryRun: local commits, no push/PR)' : ''}`)
+if (!dryRun) {
+  phase('Hooks')
+  await runAgentHook('before-ship', [`- change: ${change}`, `- title: ${title}`, `- branch: ${branch}`])
+}
 if (!runnable.length && !local) {
   // Remote path: nothing to implement and no local merge to perform — stop here.
   return { stage: 'implement', ok: true, change, branch, commits: [], notes: 'all pairs already done — nothing to implement', nextStep: `All handoff pairs are marked done. Re-run with retryBlocked to force, or proceed to /opsx:archive ${change} after merge.` }
@@ -959,6 +988,12 @@ const fin = await agent(
   ].filter(Boolean).join('\n'),
   { schema: FINALIZE, label: dryRun ? 'finalize (dry-run)' : 'finalize+pr', phase: 'PR', agentType: 'general-purpose' },
 )
+
+// ---------------------------------------------------------------- Hooks — after-code-pr-opened agent hook (best-effort)
+if (!dryRun && fin && fin.prUrl) {
+  phase('Hooks')
+  await runAgentHook('after-code-pr-opened', [`- change: ${change}`, `- branch: ${branch}`, `- code PR: ${fin.prUrl}`])
+}
 
 // ---------------------------------------------------------------- Report (remote path)
 return {

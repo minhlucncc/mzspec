@@ -25,6 +25,14 @@ a brand-new change, pass a slug (e.g. `/opsx:spec --new github-provider-adapter`
 the workflow picks the next `cNNNN-` number. Pass `--dry-run` to review only (no
 edits — just the findings + report).
 
+Optionally pass `--ticket <url|#N>` to link this change to a backlog ticket. The
+workflow records it as `ticket:` frontmatter in `proposal.md` (the single source of
+truth the lifecycle hooks read) — idempotently, never overwriting an existing value.
+Once recorded, the repo's agent-form hooks (`openspec/hooks/on-<event>.agent.md`)
+fire across the pipeline (spec started → spec PR opened → code PR opened/merged) to
+update the backlog board. You can also add the `ticket:` frontmatter by hand at
+propose time instead.
+
 **Steps**
 
 1. **Select the target.** Either an existing change name, or — for a new spec — a
@@ -47,7 +55,7 @@ edits — just the findings + report).
    system clock); use `currentDate` from context (`YYYY-MM-DD`):
 
    ```
-   Workflow({ name: 'spec-change', args: { change: '<name>', slug: '<slug|undefined>', date: '<YYYY-MM-DD>', dryRun: <true|false>, maxRevisions: <2> } })
+   Workflow({ name: 'spec-change', args: { change: '<name>', slug: '<slug|undefined>', date: '<YYYY-MM-DD>', dryRun: <true|false>, maxRevisions: <2>, ticket: '<url|#N|undefined>' } })
    ```
 
    - For an **existing** change, pass `change: '<name>'` and omit `slug`.

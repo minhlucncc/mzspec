@@ -6,6 +6,7 @@ export const meta = {
     { title: 'Preflight', detail: 'resolve change, require REVIEW.md=APPROVE + validate --strict + clean tree' },
     { title: 'Sync',      detail: 'merge delta specs into canonical openspec/specs/ (openspec-sync-specs)' },
     { title: 'Spec PR',   detail: 'branch spec/<slug>, commit spec artifacts + synced specs, push, gh pr create (stops)' },
+    { title: 'Hooks',     detail: 'fire after-spec-pr-opened agent hook (best-effort)' },
   ],
 }
 
@@ -26,6 +27,31 @@ if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Unsafe date (exp
 
 const branch = `spec/${change}`
 const SKILL = (name) => `the \`${name}\` skill (.claude/skills/${name}/SKILL.md)`
+
+// ---------------------------------------------------------------- agent-form lifecycle hook (best-effort)
+// Workflow bodies cannot require() shared libs, so this compact runner is inlined per workflow.
+// Runs the repo-defined openspec/hooks/on-<event>.agent.md so a project can wire lifecycle events
+// to a backlog board WITHOUT a built-in adapter or config.
+const HOOK_RESULT = {
+  type: 'object', additionalProperties: false, required: ['found', 'ran'],
+  properties: { found: { type: 'boolean' }, ran: { type: 'boolean' }, summary: { type: 'string' }, errors: { type: 'array', items: { type: 'string' } } },
+}
+async function runAgentHook(event, contextLines) {
+  const r = await agent(
+    [
+      `AGENT-FORM LIFECYCLE HOOK — event "${event}", OpenSpec change "${change}". BEST-EFFORT: NEVER fail; capture problems in errors[].`,
+      `Context:`,
+      ...contextLines,
+      `1. If openspec/hooks/on-${event}.agent.md does NOT exist → return { found:false, ran:false }. STOP (normal no-op — most repos have no hook).`,
+      `2. If it exists → READ it and FOLLOW its instructions as your task, using the context above. It may use gh/git/node. It typically reads the backlog ticket from openspec/changes/${change}/proposal.md frontmatter ("ticket:") and updates the board card. Summarise what you actually did in summary; set found:true and ran:true (or ran:false + an errors[] entry if its instructions failed).`,
+      `Return { found, ran, summary, errors }.`,
+    ].join('\n'),
+    { schema: HOOK_RESULT, label: `hook:${event}`, phase: 'Hooks', agentType: 'general-purpose' },
+  )
+  if (r && r.ran) log(`Agent hook on-${event}.agent.md: ${r.summary || 'ran'}`)
+  else if (r && r.found) log(`Agent hook on-${event}.agent.md: failed${r.errors && r.errors.length ? ' — ' + r.errors.join('; ') : ''}`)
+  return r
+}
 
 // ---------------------------------------------------------------- Phase 1: Preflight
 phase('Preflight')
@@ -109,6 +135,12 @@ const fin = await agent(
   ].filter(Boolean).join('\n'),
   { schema: FIN, label: dryRun ? 'spec-pr (dry-run)' : 'spec-pr', phase: 'Spec PR', agentType: 'general-purpose' },
 )
+
+// ---------------------------------------------------------------- Phase 4: Hooks — after-spec-pr-opened agent hook (best-effort)
+if (!dryRun && fin && fin.prUrl) {
+  phase('Hooks')
+  await runAgentHook('after-spec-pr-opened', [`- change: ${change}`, `- branch: ${branch}`, `- spec PR: ${fin.prUrl}`])
+}
 
 return {
   stage: 'done', ok: true, change, title: pre.title, branch, base, dryRun,
