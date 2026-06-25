@@ -120,7 +120,10 @@ TASK_EXCL='(^|/)task\.js$|(^|/)task-sources(/|$)|(^|/)task-(pull|push|log|create
 # The templates feature (template.js workflow, lib/templates.js, template-*.md commands)
 # is a separate `templates` component, so `core` excludes it too.
 TEMPLATE_EXCL='(^|/)template\.js$|(^|/)templates(\.test)?\.js$|(^|/)template-(create|update|remove|list)\.md$'
-CORE_EXCL="$TASK_EXCL|$TEMPLATE_EXCL"
+# mzspec's own unit tests (e.g. lib/gate-resolver.test.js) depend on fixtures under
+# examples/ that are not vendored, so they must never land in a consumer install.
+TEST_EXCL='(^|/)[^/]*\.test\.js$'
+CORE_EXCL="$TASK_EXCL|$TEMPLATE_EXCL|$TEST_EXCL"
 
 if has core; then
   log "installing core (workflows + opsx commands)"
