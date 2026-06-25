@@ -24,7 +24,7 @@ same `openspec/` tree — mzspec never creates a parallel store.
 - **OpenSpec provides:** the `openspec` CLI, `openspec init`/`validate`, and the base
   `/opsx:propose`, `/opsx:apply`, `/opsx:sync`, `/opsx:archive` commands.
 - **mzspec adds:** `/opsx:spec`, `/opsx:spec-pr`, `/opsx:ship-plan`, `/opsx:ship-code`,
-  `/opsx:ship`, `/opsx:ship-pr`, `/opsx:ship-all`, `/opsx:address-review`, `/opsx:author-review`, `/opsx:merge-pr`,
+  `/opsx:ship`, `/opsx:ship-pr`, `/opsx:address-review`, `/opsx:author-review`, `/opsx:merge-pr`,
   plus the gate engine.
 
 The `/opsx:*` namespace is shared deliberately — mzspec extends OpenSpec's command surface rather
@@ -52,7 +52,6 @@ than forking it.
 ```
 
 The agent never merges to the base branch — a human merges both the spec PR and the code PR.
-`/opsx:ship-all` runs the whole thing in batch across every ACTIVE change (local merges).
 
 ## The gate engine
 

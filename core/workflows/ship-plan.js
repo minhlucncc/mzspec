@@ -135,7 +135,7 @@ const title = pre.title || change
 const openTasks = (pre.changeTasks || []).filter((t) => !t.done)
 log(`preflight ok — ${pre.changeTasks.length} change task(s), ${openTasks.length} open; grouping into a few TDD units`)
 if (!openTasks.length) {
-  return { stage: 'plan', ok: true, change, handoffDir, units: 0, pairs: 0, unitFiles: [], notes: 'no open change tasks — nothing to plan', nextStep: `No open tasks in ${change}'s tasks.md — nothing to plan.` }
+  return { stage: 'plan', ok: true, change, handoffDir, units: 0, unitFiles: [], notes: 'no open change tasks — nothing to plan', nextStep: `No open tasks in ${change}'s tasks.md — nothing to plan.` }
 }
 
 // ---------------------------------------------------------------- Phase 2: Plan (write the handoff)
@@ -174,7 +174,6 @@ return {
   title,
   handoffDir,
   units: plan.units,
-  pairs: plan.units, // back-compat: ship-all reads `.pairs` to decide if there is work
   unitFiles: plan.unitFiles,
   localOnly: local,
   notes: plan.notes,

@@ -18,7 +18,8 @@ half of `/opsx:ship`.
 **Input**: Optionally a change name (e.g., `/opsx:ship-code c0006-…`). `--dry-run`
 makes the per-unit commits locally but skips push/PR/merge. `--only <unit>` runs a
 single unit (e.g. `--only 02`); `--retry-blocked` re-runs blocked units. `--local`,
-`--openPr` select the local-merge + PR path that `/opsx:ship-all` uses.
+`--openPr` select the local-merge + PR path (merge into `main` locally, then optionally
+open a PR for the record).
 `--worktree` runs implementation inside an isolated git worktree so the main checkout
 stays on `main`. Stops after the chore commit (no push, no PR) for human local
 verification (remote path only).

@@ -50,7 +50,7 @@ You can also skip the backlog and start straight from a prompt with `/opsx:propo
 | `/opsx:address-review` | address human PR feedback, re-run gates, push, reply |
 | `/opsx:archive` | after the code PR merges, archive the change |
 
-`/opsx:ship` runs plan → code in one go; `/opsx:ship-all` batches every active change.
+`/opsx:ship` runs plan → code in one go.
 
 ## Where things live
 
