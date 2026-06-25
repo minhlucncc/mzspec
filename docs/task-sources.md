@@ -79,10 +79,22 @@ writes `.link.json`. `task-push`/`task-log` update the frontmatter / append a co
 
 Both are remote — no local files are written except the change-side `.task-link.json`.
 
-## The task↔change link
+## The task↔change link (the lifecycle SSOT)
 
-- `openspec/changes/<change>/.task-link.json` → `{ source, type, taskId, taskTitle, status, history }`
-  (lets `task-push`/`task-log` find the task from the change).
+`openspec/changes/<change>/.task-link.json` is the single source of truth tying a ticket to
+its change and every artifact the ship produces. v2 shape (backward-compatible with v1; old
+files are migrated on next write by `lib/task-link.js`):
+
+```jsonc
+{ "v": 2, "source": "github", "type": "gh-issues", "taskId": "42", "taskTitle": "…",
+  "status": "in-review", "assignee": "minhlucncc",
+  "branch": "feat/c0007-…",
+  "specPr": { "url": "…", "number": 128, "mergedSha": "" },
+  "codePr": { "url": "…", "number": 131, "mergedSha": "" },
+  "changelogRef": "…", "archivePath": "openspec/changes/archive/…",
+  "history": [ { "at": "…", "event": "after-spec-pr-opened", "ref": "…" }, … ] }
+```
+
 - `.tasks/<task>/.link.json` (local source only) → `{ change, status, history }` (reverse link).
 
 ## Add your own source (e.g. Jira)
@@ -91,8 +103,24 @@ Drop `lib/task-sources/jira.js` implementing the four verbs, register it in
 `lib/task-sources/index.js` `ADAPTERS`, and add a `taskSources` entry. See
 [`extensions/task-sources/CONTRACT.md`](../extensions/task-sources/CONTRACT.md).
 
-## Status write-back (v1)
+## Automatic lifecycle wiring
 
-`task-pull` auto-marks the task **in-progress**; other transitions are explicit `task-push`/`task-log`.
-Wiring `task-push` automatically into `ship-code` (PR opened → `in-review`) and archive (→ `done`) is a
-documented follow-up — v1 keeps the core ship workflows untouched.
+As a linked change moves through the pipeline, the ship workflows fire **lifecycle events**
+(`lib/lifecycle.js`, invoked the same way they invoke `gate-resolver.js`) that comment the
+ticket, advance its status, **assign it at ship time**, and record the spec/code-PR + branch +
+CHANGELOG + archive refs into `.task-link.json`. All best-effort — never fails the ship; no-ops
+when the change isn't linked to a ticket.
+
+| Event | Fires from | Ticket effect |
+|---|---|---|
+| `before-spec`          | `/opsx:spec`     | comment "spec started" |
+| `after-spec-pr-opened` | `/opsx:spec-pr`  | comment + `specPr`; status → `in-review` |
+| `after-spec-pr-merged` | `/opsx:merge-pr` (spec branch) | comment + `specPr.mergedSha` |
+| `before-ship`          | `/opsx:ship`     | comment "implementation starting"; `branch` |
+| `after-code-pr-opened` | `/opsx:ship`     | comment + `codePr`; **assign `@me`** (if unassigned); status → `in-review` |
+| `after-code-pr-merged` | `/opsx:merge-pr` (feat branch) | comment + traceability; status → `done`; archive |
+
+Adapters gained a `setAssignee(id, login)` verb for this (see
+[`extensions/task-sources/CONTRACT.md`](../extensions/task-sources/CONTRACT.md)). Customize or
+extend any event with an executable `openspec/hooks/on-<event>` (see
+[`extensions/hooks/README.md`](../extensions/hooks/README.md)).

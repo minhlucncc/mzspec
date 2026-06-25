@@ -75,8 +75,40 @@ By default the task backlog source is inferred as GitHub Issues on your `origin`
 remote. Configure a different backend with a `taskSources` entry in a legacy config,
 or (future) an `openspec/hooks/task-source` hook.
 
-## Adding more hook points
+## Lifecycle hooks — `on-<event>` (task wiring)
 
-The same pattern extends to other workflow decisions (e.g. `pre-verify`,
-`post-archive`). Each looks for `openspec/hooks/<name>`, runs it if present, and
-falls back to a built-in default otherwise — so a repo customizes only what it needs.
+As a change moves through the pipeline, mzspec keeps the linked backlog ticket in sync:
+it comments the ticket, advances its status, assigns it at ship time, and records the
+spec/code-PR + branch + CHANGELOG + archive refs in `openspec/changes/<change>/.task-link.json`
+(the source of truth). This is **built-in** — it runs automatically whenever the change is
+linked to a ticket (i.e. it was pulled via `/opsx:task-pull`); if there's no link it no-ops.
+
+Six events fire, each from the workflow that owns that step:
+
+| Event | Fires from | Built-in default |
+|---|---|---|
+| `before-spec`          | `/opsx:spec`     | comment "spec started"; keep `in-progress` |
+| `after-spec-pr-opened` | `/opsx:spec-pr`  | comment + record `specPr`; status → `in-review` |
+| `after-spec-pr-merged` | `/opsx:merge-pr` (spec branch) | comment + record `specPr.mergedSha` |
+| `before-ship`          | `/opsx:ship`     | comment "implementation starting"; record `branch` |
+| `after-code-pr-opened` | `/opsx:ship`     | comment + record `codePr`; **assign `@me`**; status → `in-review` |
+| `after-code-pr-merged` | `/opsx:merge-pr` (feat branch) | comment + traceability; status → `done`; record archive |
+
+Assignment happens **only** at `after-code-pr-opened`, to `@me` (the gh user shipping),
+and only when the ticket has no assignee yet — a manual reassignment is never clobbered.
+
+### The `on-<event>` hook (optional extension)
+
+Drop an executable `openspec/hooks/on-<event>` (copy the matching `.example`, `chmod +x`)
+to **extend** an event — e.g. ping Slack, set a custom label. It runs **after** the
+built-in default.
+
+- **stdin:** one JSON context object —
+  `{ "event", "change", "date", "taskId", "task", "link", "refs", "comment", "repo" }`.
+- **stdout:** optional JSON, merged into the lifecycle result's `extra`.
+- **exit 0** — a non-zero exit or invalid JSON is **logged and ignored** (best-effort).
+  Unlike `resolve-gates`, lifecycle hooks never fall back and never fail the ship.
+
+The whole lifecycle layer is best-effort: a failing adapter or hook records an error but
+the `.task-link.json` is still updated and the ship proceeds. See
+`docs/task-sources.md` for the `.task-link.json` schema and the `setAssignee` adapter verb.

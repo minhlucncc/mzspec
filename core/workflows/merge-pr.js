@@ -232,6 +232,11 @@ if (budget && budget.total && budget.remaining() < reserve) {
   return { stage: 'merge', ok: false, reason: 'budget reserve reached before merge', prUrl, prNumber }
 }
 
+// Which lifecycle event this merge represents (spec/<c> vs feat/<c>); empty when the
+// PR isn't an OpenSpec change branch (lifecycle would no-op anyway).
+const isSpecPrMerge = !!(pre.headRefName && pre.headRefName.startsWith('spec/'))
+const lcMergedEvent = change ? (isSpecPrMerge ? 'after-spec-pr-merged' : 'after-code-pr-merged') : ''
+
 const mergeResult = await agent(
   [
     `Merge PR #${prNumber} in ${owner}/${repo} using ${strategy} merge strategy.`,
@@ -253,6 +258,10 @@ const mergeResult = await agent(
     `4. If no linked issues were detected but the PR body contains "Closes #N" / "Fixes #N":`,
     `   - Parse the body for those patterns`,
     `   - Close those issues too`,
+    ``,
+    lcMergedEvent
+      ? `5. LIFECYCLE (best-effort — NEVER fail the merge on this): after the merge succeeds, run \`node .claude/workflows/lib/lifecycle.js ${lcMergedEvent} --change "${change}" --merged-sha "<mergeSha>" ${isSpecPrMerge ? `--spec-pr-number ${prNumber}` : `--code-pr-number ${prNumber}`}${archived ? ` --archive-path "$(ls -d openspec/changes/archive/*-${change} 2>/dev/null | head -1)"` : ''}\`. ${isSpecPrMerge ? 'It comments the linked ticket that the spec contract is merged.' : 'It comments the linked ticket with the ticket → spec PR → code PR traceability and sets it done.'} No-ops when the change isn't linked to a ticket; on any error, log and CONTINUE.`
+      : ``,
     ``,
     `Return { merged: true, mergeSha, state, issuesClosed: [numbers] }. On failure, return { merged: false, error: "<message>" }.`,
   ].join('\n'),

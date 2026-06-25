@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# openspec/hooks/on-before-ship — OPTIONAL task-lifecycle hook.
+#
+# Fires at the "before-ship" point of the ship pipeline, AFTER mzspec's built-in
+# default has already commented the linked ticket, advanced its status/assignee, and
+# recorded the spec/code PR refs in openspec/changes/<change>/.task-link.json. Use this
+# to ADD your own behaviour (ping Slack, set a custom label, notify a channel, …).
+#
+# To enable: rename to `on-before-ship` (drop `.example`) and `chmod +x`. See ./README.md.
+#
+# Contract: the event context arrives as ONE JSON object on stdin —
+#   { "event", "change", "date", "taskId", "task", "link", "refs", "comment", "repo" }
+# Print optional JSON to stdout (merged into the lifecycle result's `extra`); exit 0.
+# A non-zero exit or invalid JSON is logged and IGNORED — it never fails the ship.
+ctx=$(cat)
+# Example: notify a channel with the ticket + PR. Parse $ctx with jq/sed as needed.
+#   change=$(printf '%s' "$ctx" | sed -n 's/.*"change":"\([^"]*\)".*/\1/p')
+exit 0

@@ -106,6 +106,7 @@ let pre = await agent(
     !dryRun && slug
       ? `3. If it does NOT exist: scaffold it now. The change name "${change}" is the target; create it via "openspec new change "${change}"" (names MUST start with a letter — the cNNNN- convention satisfies this), then draft proposal.md, the delta spec(s) under specs/<capability>/, design.md, and tasks.md following ${SKILL('openspec-propose')} and ${SKILL('spec-driven-development')} (use openspec instructions <artifact> --change "${change}" --json templates). Then set exists=true and return the resolved paths.`
       : `3. If it does NOT exist: set exists=false, ready=false, reason="change not found"${dryRun ? ' (dryRun: not scaffolding)' : ' (no slug given to draft)'} and STOP without creating anything.`,
+    !dryRun ? `4. LIFECYCLE (best-effort — NEVER fail preflight on this): once the change EXISTS, run \`node .claude/workflows/lib/lifecycle.js before-spec --change "${change}"\` to log "spec started" on the linked ticket. It no-ops when the change isn't linked to a ticket; on any error, log and CONTINUE.` : ``,
     `Return the structured result. The actionContext.mode must be spec-driven/repo-local; if it is workspace-planning, set ready=false and say so.`,
   ].filter(Boolean).join('\n'),
   { schema: PREFLIGHT, label: 'preflight', phase: 'Preflight', agentType: 'general-purpose' },

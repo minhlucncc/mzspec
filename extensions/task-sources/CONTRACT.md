@@ -17,7 +17,7 @@ Every adapter returns tasks in this shape (build them with `normalize.makeTask`)
 
 ## The adapter interface
 
-A constructor `new Adapter(entry, { statusMap, cwd, bin })` and five async verbs:
+A constructor `new Adapter(entry, { statusMap, cwd, bin })` and six async verbs:
 
 ```js
 class TaskSource {
@@ -26,8 +26,15 @@ class TaskSource {
   async create({ title, body, labels }) // -> Task   (new backlog item; status 'todo')
   async setStatus(id, status)        // map normalized status -> backend representation
   async comment(id, text)            // append a comment (text may be multi-line)
+  async setAssignee(id, login)       // assign the ticket (idempotent; login '' clears). '@me' allowed.
 }
 ```
+
+The **task-lifecycle** dispatcher (`lib/lifecycle.js`) drives `comment`/`setStatus`/`setAssignee`
+through the configured adapter as a change moves through the pipeline, and records the resulting
+PR/branch refs in the change's `.task-link.json`. PR ↔ ticket cross-links ride in the comment body
+(GitHub's timeline auto-links a `#<pr>` mention); the `.task-link.json` is the queryable source of
+truth. Projects-backed adapters set the assignee on the item's backing issue (cross-repo `--repo`).
 
 - `entry` is the `taskSources[]` config entry `{ name, type, enabled, config }`.
 - `statusMap` is `config.taskStatusMap` (per-adapter status mapping; adapters supply defaults).
@@ -53,7 +60,7 @@ The first `enabled` source is the default; `--source <name>` overrides per comma
 
 ## The CLI surface (what the workflow calls)
 
-`node .claude/workflows/lib/task-sources/cli.js <list|next|get|set-status|comment> [...] [--source N]`
+`node .claude/workflows/lib/task-sources/cli.js <list|next|get|set-status|set-assignee|comment> [...] [--source N]`
 prints JSON. The `/opsx:task-*` commands drive this the same way `ship-code` drives `gate-resolver.js`.
 
 ## Built-in adapters

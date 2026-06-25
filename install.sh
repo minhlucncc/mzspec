@@ -180,11 +180,15 @@ else
   log "no mzspec.config.json — zero-config: gates auto-discovered from your manifests"
 fi
 
-# Workflow hooks — the universal per-project gate override (openspec/hooks/resolve-gates,
-# the top of the resolver's resolution chain). Vendor the README + example; your actual
-# executable `resolve-gates` (no .example) is project-owned and never written by mzspec.
+# Workflow hooks — the per-project overrides (openspec/hooks/): the gate-resolution
+# override `resolve-gates`, and the task-lifecycle `on-<event>` extensions. Vendor the
+# README + the .example stubs; your actual executables (no .example) are project-owned
+# and never written by mzspec.
 vendor "$SRC/extensions/hooks/README.md"             "$DEST/openspec/hooks/README.md"
 vendor "$SRC/extensions/hooks/resolve-gates.example" "$DEST/openspec/hooks/resolve-gates.example"
+for ev in before-spec after-spec-pr-opened after-spec-pr-merged before-ship after-code-pr-opened after-code-pr-merged; do
+  vendor "$SRC/extensions/hooks/on-$ev.example" "$DEST/openspec/hooks/on-$ev.example"
+done
 
 # SDD_GUIDE.md — orient humans + agents to the task→spec→ship workflow.
 # Written when missing; refreshed on --upgrade (it tracks mzspec); left untouched otherwise.
@@ -207,6 +211,13 @@ if [ "$UPGRADE" -eq 1 ]; then
   else
     warn "migrate.sh not found in mzspec source — skipping prune step."
   fi
+fi
+
+# Stamp the installed mzspec version (always refreshed — it's a marker, not user data).
+if [ -f "$SRC/VERSION" ]; then
+  mkdir -p "$DEST/.claude"
+  cp "$SRC/VERSION" "$DEST/.claude/.mzspec-version"
+  log "mzspec version: $(cat "$SRC/VERSION")"
 fi
 
 # ---- summary -------------------------------------------------------------------
