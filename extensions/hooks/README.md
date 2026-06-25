@@ -112,3 +112,23 @@ built-in default.
 The whole lifecycle layer is best-effort: a failing adapter or hook records an error but
 the `.task-link.json` is still updated and the ship proceeds. See
 `docs/task-sources.md` for the `.task-link.json` schema and the `setAssignee` adapter verb.
+
+### The `on-<event>.agent.md` hook (optional, agentic)
+
+Where the executable `on-<event>` shell hook runs a deterministic script, an
+`openspec/hooks/on-<event>.agent.md` hook is a set of **natural-language instructions the
+workflow runs as an agent** — with full tool access (`gh`, `git`, `node`, the task-source
+CLI). Use it for work a script can't reasonably do: drafting a release note from the diff,
+deciding based on spec content, opening a follow-up, posting a richer ticket/PR comment.
+
+- **Driven from the workflow, not from `lifecycle.js`.** The owning workflow (currently
+  `merge-pr` for `after-spec-pr-merged` / `after-code-pr-merged`) has a dedicated **Hooks
+  phase** whose agent hook-runner: (1) runs `lifecycle.js <event>` — the built-in ticket
+  comment + status + the `on-<event>` shell hook — then (2) if `on-<event>.agent.md`
+  exists, reads it and follows its instructions as an agent task.
+- **Context:** the runner passes the `change`, `event`, merged PR #/URL, and merge SHA;
+  read `openspec/changes/<change>/.task-link.json` for the linked ticket.
+- **Best-effort:** a failure is logged in the workflow result's `hooks.errors[]` and never
+  un-does the merge.
+- Copy `on-after-spec-pr-merged.agent.md.example` → `on-after-spec-pr-merged.agent.md`
+  (drop the `.example`) and edit. The runner matches the exact name `on-<event>.agent.md`.

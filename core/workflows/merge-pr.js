@@ -1,13 +1,14 @@
 export const meta = {
   name: 'merge-pr',
   description:
-    'Team-lead PR merge workflow. Given an OpenSpec change slug or a PR URL, it preflights (PR status, linked issues, changelog), optionally updates the title/body/closing keywords and adds changelog entry, archives the OpenSpec change as a commit on the branch, then merges the PR via GitHub, closes linked issues, and reports. The archive + changelog commit goes on the branch BEFORE merge so the PR review includes it. Honors dryRun (show what it would do; no merge/close/archive).',
+    'Team-lead PR merge workflow. Given an OpenSpec change slug or a PR URL, it preflights (PR status, linked issues, changelog), optionally updates the title/body/closing keywords and adds changelog entry, archives the OpenSpec change as a commit on the branch, then merges the PR via GitHub and closes linked issues. After the merge it runs an AGENT HOOK RUNNER phase that fires the lifecycle event (ticket comment + status via lifecycle.js, the executable on-<event> shell hook, and an optional agent-form on-<event>.agent.md hook). The archive + changelog commit goes on the branch BEFORE merge so the PR review includes it. Honors dryRun (show what it would do; no merge/close/archive/hooks).',
   phases: [
     { title: 'Preflight', detail: 'find PR, check status, detect linked issues, check changelog' },
     { title: 'Prepare',   detail: 'update PR title/body/closing keywords, add changelog if missing' },
     { title: 'Archive',   detail: 'archive the OpenSpec change as a commit on the branch before merge' },
-    { title: 'Merge',     detail: 'merge PR via GitHub API, close issues, post linking comments' },
-    { title: 'Summary',   detail: 'report merge SHA, closed issues, PR URL, archive status' },
+    { title: 'Merge',     detail: 'merge PR via GitHub API, close linked issues' },
+    { title: 'Hooks',     detail: 'agent hook-runner — fire the lifecycle event (ticket comment, status, shell + agent-form hooks)' },
+    { title: 'Summary',   detail: 'report merge SHA, closed issues, PR URL, archive + hook status' },
   ],
 }
 
@@ -259,10 +260,6 @@ const mergeResult = await agent(
     `   - Parse the body for those patterns`,
     `   - Close those issues too`,
     ``,
-    lcMergedEvent
-      ? `5. LIFECYCLE (best-effort — NEVER fail the merge on this): after the merge succeeds, run \`node .claude/workflows/lib/lifecycle.js ${lcMergedEvent} --change "${change}" --merged-sha "<mergeSha>" ${isSpecPrMerge ? `--spec-pr-number ${prNumber}` : `--code-pr-number ${prNumber}`}${archived ? ` --archive-path "$(ls -d openspec/changes/archive/*-${change} 2>/dev/null | head -1)"` : ''}\`. ${isSpecPrMerge ? 'It comments the linked ticket that the spec contract is merged.' : 'It comments the linked ticket with the ticket → spec PR → code PR traceability and sets it done.'} No-ops when the change isn't linked to a ticket; on any error, log and CONTINUE.`
-      : ``,
-    ``,
     `Return { merged: true, mergeSha, state, issuesClosed: [numbers] }. On failure, return { merged: false, error: "<message>" }.`,
   ].join('\n'),
   {
@@ -283,9 +280,8 @@ const mergeResult = await agent(
   },
 )
 
-// ---------------------------------------------------------------- Phase 5: Summary
-phase('Summary')
 if (!mergeResult || !mergeResult.merged) {
+  phase('Summary')
   return {
     stage: 'merge-failed', ok: false, prUrl, prNumber,
     error: mergeResult ? mergeResult.error : 'merge agent returned null',
@@ -293,11 +289,101 @@ if (!mergeResult || !mergeResult.merged) {
   }
 }
 
+// ---------------------------------------------------------------- Phase 5: Hooks — agent hook-runner for the lifecycle event
+// One explicit, first-class step drives ALL post-merge wiring (instead of burying it
+// in the merge agent's prompt): the deterministic lifecycle (ticket comment + status +
+// the executable on-<event> shell hook) AND an optional agent-form on-<event>.agent.md
+// hook — natural-language instructions an agent executes with tools. Best-effort: a
+// hook failure never un-does the merge.
+phase('Hooks')
+let hooks = { ran: false, skipped: lcMergedEvent ? '' : 'not-an-openspec-change-branch' }
+if (lcMergedEvent && !(budget && budget.total && budget.remaining() < reserve)) {
+  const archiveGlob = `$(ls -d openspec/changes/archive/*-${change} 2>/dev/null | head -1)`
+  const lifecycleCmd =
+    `node .claude/workflows/lib/lifecycle.js ${lcMergedEvent} --change "${change}" ` +
+    `--merged-sha "${mergeResult.mergeSha}" ` +
+    `${isSpecPrMerge ? `--spec-pr-number ${prNumber}` : `--code-pr-number ${prNumber}`}` +
+    `${archived ? ` --archive-path "${archiveGlob}"` : ''} --json`
+  const HOOKS = {
+    type: 'object', additionalProperties: false,
+    required: ['ran'],
+    properties: {
+      ran: { type: 'boolean' },
+      lifecycle: {
+        type: 'object', additionalProperties: true,
+        properties: {
+          commented: { type: 'boolean' }, statusSet: { type: 'boolean' },
+          skipped: { type: 'string' }, shellHookRan: { type: 'boolean' },
+        },
+      },
+      agentHook: {
+        type: 'object', additionalProperties: true,
+        properties: { found: { type: 'boolean' }, ran: { type: 'boolean' }, summary: { type: 'string' } },
+      },
+      errors: { type: 'array', items: { type: 'string' } },
+    },
+  }
+  const hookResult = await agent(
+    [
+      `You are the AGENT HOOK RUNNER for the merge-pr workflow. PR #${prNumber} has ALREADY been merged.`,
+      `Your job: fire the post-merge lifecycle event "${lcMergedEvent}" for OpenSpec change "${change}".`,
+      `This is BEST-EFFORT — NEVER fail. Capture every problem in errors[] and keep going.`,
+      ``,
+      `Context (use it for both steps):`,
+      `- change: ${change}`,
+      `- event: ${lcMergedEvent}`,
+      `- merged PR: #${prNumber} (${prUrl})`,
+      `- merge SHA: ${mergeResult.mergeSha}`,
+      `- ${isSpecPrMerge ? 'this is the SPEC PR merge' : 'this is the CODE PR merge'}`,
+      archived ? `- change was archived on the branch (archive dir matches *-${change})` : '',
+      ``,
+      `STEP 1 — deterministic lifecycle (ticket comment + status + the executable on-${lcMergedEvent} shell hook):`,
+      `  Run exactly: ${lifecycleCmd}`,
+      `  Parse the JSON stdout. Map: lifecycle.commented <- did.commented, lifecycle.statusSet <- did.statusSet,`,
+      `  lifecycle.shellHookRan <- did.hookRan, lifecycle.skipped <- (top-level "skipped" field, e.g. "no-link").`,
+      `  A {skipped:"no-link"} result is NORMAL (the change isn't linked to a ticket) — record it, do NOT treat it as an error.`,
+      ``,
+      `STEP 2 — agent-form hook (optional, repo-defined, tool-using):`,
+      `  Check whether the file openspec/hooks/on-${lcMergedEvent}.agent.md exists.`,
+      `  - If absent: set agentHook.found=false and skip.`,
+      `  - If present: READ it and FOLLOW its instructions as your task, using the context above. It may use tools`,
+      `    (gh, git, node, etc.) to do agentic work the shell hook can't — e.g. draft a release note, comment a PR,`,
+      `    open a follow-up. Summarise what you actually did in agentHook.summary; set agentHook.found=true and`,
+      `    agentHook.ran=true (or ran=false + an errors[] entry if its instructions failed).`,
+      ``,
+      `Return { ran:true, lifecycle:{...}, agentHook:{...}, errors:[...] }.`,
+    ].filter(Boolean).join('\n'),
+    { schema: HOOKS, label: 'hook-runner', phase: 'Hooks', agentType: 'general-purpose' },
+  )
+  hooks = hookResult || { ran: false, errors: ['hook-runner agent returned null'] }
+  const lc = hooks.lifecycle || {}
+  if (lc.commented) log(`Lifecycle: commented the linked ticket for ${lcMergedEvent}`)
+  else if (lc.skipped) log(`Lifecycle: ${lc.skipped} — no ticket comment (change not linked)`)
+  if (lc.shellHookRan) log(`Shell hook on-${lcMergedEvent} ran`)
+  if (hooks.agentHook && hooks.agentHook.ran) log(`Agent hook on-${lcMergedEvent}.agent.md ran`)
+  if (hooks.errors && hooks.errors.length) log(`Hook errors (non-fatal): ${hooks.errors.join('; ')}`)
+} else if (!lcMergedEvent) {
+  log('Hooks: PR is not an OpenSpec change branch — no lifecycle event to fire')
+} else {
+  hooks = { ran: false, skipped: 'budget-reserve-reached' }
+  log('Hooks: skipped — budget reserve reached')
+}
+
+// ---------------------------------------------------------------- Phase 6: Summary
+phase('Summary')
 const issuesClosed = mergeResult.issuesClosed || []
 
+const lc = hooks.lifecycle || {}
 const postMergeNotes = []
 if (archived) {
   postMergeNotes.push(`- 📦 Change "${change}" archived on branch, included in merge.`)
+}
+if (lcMergedEvent) {
+  if (lc.commented) postMergeNotes.push(`- 🪝 Lifecycle \`${lcMergedEvent}\` fired — linked ticket commented${lc.statusSet ? ' + status advanced' : ''}.`)
+  else if (lc.skipped === 'no-link') postMergeNotes.push(`- 🪝 Lifecycle \`${lcMergedEvent}\`: change is not linked to a ticket (no \`.task-link.json\`) — no comment. Link it via \`/opsx:task-pull\` / \`/opsx:task-push\` to enable.`)
+  else if (lc.skipped) postMergeNotes.push(`- 🪝 Lifecycle \`${lcMergedEvent}\`: skipped (${lc.skipped}).`)
+  if (hooks.agentHook && hooks.agentHook.ran) postMergeNotes.push(`- 🤖 Agent hook \`on-${lcMergedEvent}.agent.md\`: ${hooks.agentHook.summary || 'ran'}.`)
+  if (hooks.errors && hooks.errors.length) postMergeNotes.push(`- ⚠️ Hook errors (non-fatal): ${hooks.errors.join('; ')}`)
 }
 if (!pre.changelogEntry && change) {
   postMergeNotes.push(`- Consider adding a CHANGELOG entry for ${change} if not already present.`)
@@ -315,6 +401,8 @@ return {
   archiveReason,
   archiveSha,
   changelogPresent: !!pre.changelogEntry,
+  lifecycleEvent: lcMergedEvent || null,
+  hooks,
   prTitle: finalTitle,
   nextStep: [
     `✅ Merged PR #${prNumber} (${strategy}) — commit \`${mergeResult.mergeSha}\``,
