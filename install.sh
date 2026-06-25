@@ -189,6 +189,12 @@ vendor "$SRC/extensions/hooks/resolve-gates.example" "$DEST/openspec/hooks/resol
 for ev in before-spec after-spec-pr-opened after-spec-pr-merged before-ship after-code-pr-opened after-code-pr-merged; do
   vendor "$SRC/extensions/hooks/on-$ev.example" "$DEST/openspec/hooks/on-$ev.example"
 done
+# Agent-form lifecycle hooks (on-<event>.agent.md) — natural-language instructions a
+# workflow runs as an agent, layered over the shell hooks. Vendored when present.
+for f in "$SRC"/extensions/hooks/on-*.agent.md.example; do
+  [ -e "$f" ] || continue
+  vendor "$f" "$DEST/openspec/hooks/$(basename "$f")"
+done
 
 # SDD_GUIDE.md — orient humans + agents to the task→spec→ship workflow.
 # Written when missing; refreshed on --upgrade (it tracks mzspec); left untouched otherwise.

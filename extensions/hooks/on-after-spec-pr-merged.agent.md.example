@@ -1,0 +1,41 @@
+# Agent hook — `on-after-spec-pr-merged`
+
+This is an **agent-form** lifecycle hook. Unlike the executable `on-<event>` shell
+hook (a deterministic script, JSON in/out), an agent hook is a set of natural-language
+instructions that the **merge-pr workflow's Hooks phase runs as an agent** — with full
+tool access (`gh`, `git`, `node`, the task-source CLI, …). Use it for work a shell
+script can't reasonably do: drafting prose, deciding based on diff content, opening a
+follow-up, posting a richer ticket/PR comment.
+
+## Activate
+
+Copy this file to the active name (drop the `.example`) and edit:
+
+```sh
+cp openspec/hooks/on-after-spec-pr-merged.agent.md.example \
+   openspec/hooks/on-after-spec-pr-merged.agent.md
+```
+
+The runner looks for `openspec/hooks/on-<event>.agent.md` exactly. It runs **after** the
+deterministic lifecycle step (ticket comment + status + the `on-<event>` shell hook), so
+anything here is additive. It is **best-effort** — a failure is logged and never un-does
+the merge.
+
+## Context you're given
+
+The runner passes you: the `change` slug, the `event`, the merged PR number + URL, and
+the merge SHA. Read `openspec/changes/<change>/.task-link.json` for the linked ticket id
+and source.
+
+## Your task (edit me)
+
+> The spec contract for **{change}** just merged (PR #{prNumber}, `{mergeSha}`).
+>
+> 1. Read the merged delta spec under `openspec/changes/{change}/specs/` and write a
+>    2–3 sentence plain-language summary of what the contract now guarantees.
+> 2. Post that summary as a comment on the linked ticket using the task-source CLI:
+>    `node .claude/workflows/lib/task-sources/cli.js comment <taskId> --text "<summary>"`
+>    (skip if the change has no `.task-link.json`).
+> 3. Return a one-line `summary` of what you did.
+
+Keep side effects idempotent — this may run more than once if a merge is retried.
