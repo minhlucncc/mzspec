@@ -167,17 +167,24 @@ if has gates; then
   vendor_dir "$SRC/extensions/gates" "$DEST/.claude/mzspec-gates"
 fi
 
-# ---- project config ------------------------------------------------------------
-
-CONFIG="$DEST/mzspec.config.json"
-if [ ! -e "$CONFIG" ]; then
-  cp "$SRC/templates/mzspec.config.template.json" "$CONFIG"
-  log "wrote mzspec.config.json (fill in your toolchain dirs + gates)"
-else
-  log "mzspec.config.json already present — left untouched"
-fi
-# Schema for editor validation.
+# ---- project config (optional — zero-config by default) ------------------------
+# The gate-resolver auto-discovers toolchains from your repo's own manifests
+# (lib/discover.js), so a mzspec.config.json is OPTIONAL. We never write a placeholder:
+# an empty/placeholder config would SHADOW discovery (config wins over discover) and
+# resolve to zero gates. Provide one only to override discovery; the schema is vendored
+# for editor validation if you do.
 vendor "$SRC/mzspec.config.schema.json" "$DEST/mzspec.config.schema.json"
+if [ -e "$DEST/mzspec.config.json" ]; then
+  log "mzspec.config.json present — honored (overrides auto-discovery); left untouched"
+else
+  log "no mzspec.config.json — zero-config: gates auto-discovered from your manifests"
+fi
+
+# Workflow hooks — the universal per-project gate override (openspec/hooks/resolve-gates,
+# the top of the resolver's resolution chain). Vendor the README + example; your actual
+# executable `resolve-gates` (no .example) is project-owned and never written by mzspec.
+vendor "$SRC/extensions/hooks/README.md"             "$DEST/openspec/hooks/README.md"
+vendor "$SRC/extensions/hooks/resolve-gates.example" "$DEST/openspec/hooks/resolve-gates.example"
 
 # SDD_GUIDE.md — orient humans + agents to the task→spec→ship workflow.
 # Written when missing; refreshed on --upgrade (it tracks mzspec); left untouched otherwise.
@@ -207,8 +214,8 @@ fi
 log "done — $copied file(s) installed, $skipped left in place (use --force to overwrite)."
 log "next:"
 log "  0. read SDD_GUIDE.md — the task→spec→ship workflow in 2 minutes"
-log "  1. edit mzspec.config.json — set toolchains.<tc>.dirs/gates, gatesDir, customGates, taskSources"
-log "  2. add your gate scripts under your gatesDir (see .claude/mzspec-gates/CONTRACT.md)"
+log "  1. gates are ZERO-CONFIG — auto-discovered from your manifests (pyproject.toml/go.mod/pnpm). Check: git diff --name-only | node .claude/workflows/lib/gate-resolver.js --stdin"
+log "  2. need to override a gate? add openspec/hooks/resolve-gates (cp the .example), or a mzspec.config.json — both optional"
 log "  3. (tasks) author a .tasks/<id>/task.md or enable a gh/mello source, then /opsx:task-pull"
 log "  4. (templates, optional) capture a recurring flow with /opsx:template-create — planning checks openspec/templates/, none is fine"
 log "  5. run the pipeline:  /opsx:task-pull  →  /opsx:spec  →  /opsx:spec-pr  →  /opsx:ship-plan  →  /opsx:ship-code"

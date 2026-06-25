@@ -41,9 +41,12 @@ git clone https://github.com/minhlucncc/mzspec && bash mzspec/install.sh --dest 
      `.claude/mzspec-templates/` (contract) + starter playbook(s) into `openspec/templates/`
    - `skills` → `.claude/skills/`
    - `gates` → `.claude/mzspec-gates/` (the contract + starters)
-4. Writes `mzspec.config.json` from the template **only if absent** (never clobbers yours), plus
-   `mzspec.config.schema.json` for editor validation, and an **`SDD_GUIDE.md`** (the workflow intro,
-   also skip-if-present).
+4. Vendors the `openspec/hooks/` README + `resolve-gates.example` (the universal gate override),
+   the `mzspec.config.schema.json` (editor validation, for the optional config), and an
+   **`SDD_GUIDE.md`** (the workflow intro, skip-if-present). It does **not** write a
+   `mzspec.config.json` — gates are **zero-config** by default (auto-discovered from your
+   manifests); a placeholder config would only shadow that discovery. Add one yourself only to
+   override discovery.
 
 Re-running is safe: existing files are skipped unless `--force` is given. The installer prints how
 many files were installed vs left in place.
@@ -76,8 +79,11 @@ bash mzspec/migrate.sh --dest /path/to/project          # or --dry-run to previe
 
 ## After installing
 
-1. Edit `mzspec.config.json` — set `toolchains.<tc>.dirs` / `gates`, `gatesDir`, `customGates`.
-2. Add your gate scripts under your `gatesDir` (see `.claude/mzspec-gates/CONTRACT.md`).
+1. Gates are **zero-config** — sanity-check what the resolver discovers for a diff:
+   `git diff --name-only <base>...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin`.
+2. Need to override a gate? Either drop an `openspec/hooks/resolve-gates` executable
+   (`cp openspec/hooks/resolve-gates.example openspec/hooks/resolve-gates`) or add an explicit
+   `mzspec.config.json` — both optional.
 3. (optional) Capture a recurring flow with `/opsx:template-create` — planning consults
    `openspec/templates/`, and no template is fine (see [templates.md](templates.md)).
 4. Drive the pipeline: `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship-plan` → `/opsx:ship-code`.

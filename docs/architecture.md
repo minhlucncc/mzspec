@@ -56,20 +56,28 @@ The agent never merges to the base branch — a human merges both the spec PR an
 ## The gate engine
 
 `lib/gate-resolver.js` maps `git diff --name-only <base>...HEAD` to the exact, deduped set of
-quality gates for the change, driven entirely by `mzspec.config.json`:
+quality gates for the change. It resolves the gate inventory through a **3-step chain** (no
+central config required):
 
-1. **classify** each touched file to a toolchain by longest-prefix match over
-   `toolchains.<tc>.dirs` (declaration order breaks ties — declare `go` before `py`).
-2. **emit** that toolchain's `gates` (with `{dir}` substituted) per touched package.
-3. **add** the bench "free ladder" when a trigger toolchain or a bench path is touched.
-4. **append** always-gates (e.g. `openspec validate`) and the migration gate when relevant.
-5. **append** matching `customGates` — the plugin hook for your own gate scripts.
+1. **`openspec/hooks/resolve-gates`** — if this executable exists, run it; its stdout JSON *is*
+   the plan. The universal override for any framework/language.
+2. **`mzspec.config.json`** — if present, use it (explicit pin; back-compat).
+3. **auto-discovery** (`lib/discover.js`, the **zero-config default**) — synthesize the inventory
+   from the repo's own manifests: `[tool.uv.workspace]` members / `pyproject.toml` (py), every
+   `go.mod` (go), `pnpm-workspace.yaml` packages with a `lint` script (ts), plus the bench ladder
+   and the alembic migration gate when present.
+
+Given that inventory, it then **classifies** each touched file to a toolchain by longest-prefix
+match, **emits** that toolchain's gates per touched package, **adds** the bench free ladder when a
+trigger toolchain/path is touched, and **appends** the always-gates (e.g. `openspec validate`) and
+the migration gate when relevant.
 
 The ship-code Verify phase runs every emitted command; each must exit 0. See
 [gate-plugin.md](gate-plugin.md).
 
 ## What stays project-owned
 
-mzspec is generic. Your concrete gate scripts, your toolchain inventory, and your hard-invariants
-live in *your* repo (config + `gatesDir`), not in mzspec. The `examples/meknow/` config shows a
+mzspec is generic. Your toolchain inventory is auto-discovered from your manifests; your concrete
+gate overrides (`openspec/hooks/resolve-gates`), any explicit config, and your hard-invariants
+live in *your* repo, not in mzspec. The `examples/meknow/` config shows a
 complete real-world setup.
