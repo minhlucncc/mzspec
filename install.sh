@@ -12,6 +12,10 @@
 #   --ref <tag>      mzspec git ref to install (default: main)
 #   --dest <dir>     Target project root (default: current directory)
 #   --force          Overwrite already-vendored files (default: skip existing)
+#   --upgrade        Update an existing install: refresh mzspec-owned files to the
+#                    current version (implies --force) AND run migrate.sh to prune
+#                    artifacts of removed features. Project-owned files (mzspec.config.json,
+#                    openspec/templates/ starters) are preserved.
 #   --no-openspec    Do not attempt `openspec init` if openspec/ is missing
 #   -h, --help       Show this help
 set -euo pipefail
@@ -22,6 +26,7 @@ WITH="core,gates,skills,tasks,templates"
 REF="main"
 DEST="$(pwd)"
 FORCE=0
+UPGRADE=0
 DO_OPENSPEC=1
 
 log()  { printf '\033[1;35mmzspec\033[0m %s\n' "$*"; }
@@ -39,6 +44,7 @@ while [ "$#" -gt 0 ]; do
     --dest)        DEST="${2:?}"; shift 2 ;;
     --dest=*)      DEST="${1#*=}"; shift ;;
     --force)       FORCE=1; shift ;;
+    --upgrade)     UPGRADE=1; FORCE=1; shift ;;
     --no-openspec) DO_OPENSPEC=0; shift ;;
     -h|--help)     usage ;;
     *)             die "unknown option: $1 (try --help)" ;;
@@ -53,7 +59,7 @@ command -v node >/dev/null 2>&1 || die "node is required (the workflows + gate-r
 command -v git  >/dev/null 2>&1 || die "git is required."
 
 DEST="$(cd "$DEST" && pwd)" || die "--dest does not exist: $DEST"
-log "installing into: $DEST"
+if [ "$UPGRADE" -eq 1 ]; then log "upgrading install at: $DEST (refresh + migrate)"; else log "installing into: $DEST"; fi
 
 if [ ! -d "$DEST/openspec" ]; then
   if [ "$DO_OPENSPEC" -eq 1 ] && command -v openspec >/dev/null 2>&1; then
@@ -140,8 +146,11 @@ if has templates; then
     vendor "$SRC/core/commands/opsx/$v.md" "$DEST/.claude/commands/opsx/$v.md"
   done
   vendor      "$SRC/extensions/templates/CONTRACT.md"    "$DEST/.claude/mzspec-templates/CONTRACT.md"
-  # Starter playbooks are project-owned content → land in openspec/templates/ (skip if present).
+  # Starter playbooks are project-owned content → land in openspec/templates/ and are
+  # never overwritten, even on --force/--upgrade (a project edits these freely).
+  _force_save=$FORCE; FORCE=0
   vendor_dir  "$SRC/extensions/templates/starters"       "$DEST/openspec/templates"
+  FORCE=$_force_save
 fi
 
 if has skills; then
@@ -167,12 +176,27 @@ fi
 # Schema for editor validation.
 vendor "$SRC/mzspec.config.schema.json" "$DEST/mzspec.config.schema.json"
 
-# SDD_GUIDE.md — orient humans + agents to the task→spec→ship workflow (skip if present).
+# SDD_GUIDE.md — orient humans + agents to the task→spec→ship workflow.
+# Written when missing; refreshed on --upgrade (it tracks mzspec); left untouched otherwise.
 if [ ! -e "$DEST/SDD_GUIDE.md" ]; then
   cp "$SRC/templates/SDD_GUIDE.md" "$DEST/SDD_GUIDE.md"
   log "wrote SDD_GUIDE.md (the workflow guide)"
+elif [ "$UPGRADE" -eq 1 ]; then
+  cp "$SRC/templates/SDD_GUIDE.md" "$DEST/SDD_GUIDE.md"
+  log "refreshed SDD_GUIDE.md (--upgrade)"
 else
   log "SDD_GUIDE.md already present — left untouched"
+fi
+
+# ---- migrations (upgrade only) -------------------------------------------------
+# install.sh only vendors files; migrate.sh prunes the artifacts of removed features.
+if [ "$UPGRADE" -eq 1 ]; then
+  if [ -f "$SRC/migrate.sh" ]; then
+    log "running migrations (prune removed features) ..."
+    bash "$SRC/migrate.sh" --dest "$DEST"
+  else
+    warn "migrate.sh not found in mzspec source — skipping prune step."
+  fi
 fi
 
 # ---- summary -------------------------------------------------------------------

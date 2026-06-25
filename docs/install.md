@@ -27,6 +27,7 @@ git clone https://github.com/minhlucncc/mzspec && bash mzspec/install.sh --dest 
 | `--ref <tag>` | `main` | mzspec git ref to pin |
 | `--dest <dir>` | cwd | target project root |
 | `--force` | off | overwrite already-vendored files (per file) |
+| `--upgrade` | off | update an existing install (implies `--force` + runs `migrate.sh`) — see below |
 | `--no-openspec` | off | don't auto-run `openspec init` |
 
 ## What it does (idempotent)
@@ -46,6 +47,32 @@ git clone https://github.com/minhlucncc/mzspec && bash mzspec/install.sh --dest 
 
 Re-running is safe: existing files are skipped unless `--force` is given. The installer prints how
 many files were installed vs left in place.
+
+## Upgrading an existing install
+
+`install.sh` only ever *vendors* (copies) files — it never deletes. So a plain re-run won't pick up
+files that mzspec **removed** (e.g. a retired workflow), and without `--force` it won't refresh files
+that mzspec **changed**. Use `--upgrade` to bring an existing install fully up to date:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/minhlucncc/mzspec/main/install.sh | bash -s -- --upgrade --dest /path/to/project
+# or from a clone:
+bash mzspec/install.sh --upgrade --dest /path/to/project
+```
+
+`--upgrade`:
+
+1. **Refreshes** every mzspec-owned vendored file to the current version (it implies `--force`).
+2. **Refreshes `SDD_GUIDE.md`** (the workflow guide tracks mzspec).
+3. **Preserves project-owned content** — `mzspec.config.json` and your `openspec/templates/` starter
+   playbooks are never overwritten.
+4. **Runs `migrate.sh`** to prune the artifacts of removed features (idempotent remove-if-present).
+
+You can also run the prune step on its own without re-vendoring:
+
+```bash
+bash mzspec/migrate.sh --dest /path/to/project          # or --dry-run to preview
+```
 
 ## After installing
 
