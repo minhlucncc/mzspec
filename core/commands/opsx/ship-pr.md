@@ -1,14 +1,15 @@
 ---
 name: "OPSX: Ship PR"
-description: Push an implemented feature branch, archive the change, and open/create its code PR — after local verification of a --worktree ship
+description: Push an implemented feature branch and open/create its code PR — after local verification of a --worktree ship
 category: Workflow
 tags: [workflow, automation, pr, experimental]
 ---
 
-Push the `feat/<change>` branch, **archive the change** (move `openspec/changes/<c>/`
-→ `openspec/changes/archive/`), and create (or update) the code PR — all in one step.
-Archiving as part of this PR means the archive lands on `main` when the PR merges,
-so **no separate post-merge workflow or extra PR** is needed.
+Push the `feat/<change>` branch and create (or update) the code PR — in one step.
+The change is **not archived here**: archiving happens at merge time via
+`/opsx:merge-pr` (which commits the archive on the branch before merging, so it
+still lands on `main` with the merge). Keeping the change active through PR review
+means `/opsx:address-review` can keep operating on the live change directory.
 
 > **Prerequisite:** The change must have been implemented already via
 > `/opsx:ship --worktree <change>`. Test locally, then run this.
@@ -27,23 +28,12 @@ so **no separate post-merge workflow or extra PR** is needed.
    If it doesn't exist, stop — tell the user to run `/opsx:ship --worktree <change>`
    first.
 
-3. **Archive the change** (move artifacts to archive/):
-   ```bash
-   mkdir -p openspec/changes/archive/$(date +%F)-<change>
-   mv openspec/changes/<change>/* openspec/changes/archive/$(date +%F)-<change>/
-   ```
-   Verify the change dir is now empty, then commit the archive:
-   ```bash
-   git add -A
-   git commit -m "chore(${change}): archive after implementation"
-   ```
-
-4. **Push the branch** (all commits + archive):
+3. **Push the branch** (all implementation + evidence commits — do NOT archive here):
    ```bash
    git push -u origin feat/<change>
    ```
 
-5. **Create or update the PR.** Reuse if one already exists:
+4. **Create or update the PR.** Reuse if one already exists:
    ```bash
    gh pr view feat/<change> --json url,state 2>/dev/null
    ```
@@ -54,12 +44,13 @@ so **no separate post-merge workflow or extra PR** is needed.
      --body "<summary from proposal + AI review findings + evidence>"
    ```
 
-6. **Relay the result.** Report the PR URL. Tell the user: the PR includes both
-   code and the archive — when it merges, everything lands on `main` at once.
-   No separate post-merge workflow needed.
+5. **Relay the result.** Report the PR URL. Tell the user: the change stays active
+   through review; when the PR is merged via `/opsx:merge-pr`, the archive is
+   committed on the branch and lands on `main` with the merge.
 
 **Guardrails**
 - Requires a `feat/<change>` branch with commits — never creates a PR from nothing.
-- Does not implement code, does not merge — just archives + pushes + creates the PR.
+- Does not implement code, does not archive, does not merge — just pushes + creates the PR.
+- Archiving is owned by `/opsx:merge-pr` (or a standalone `/opsx:archive` after merge),
+  never by ship-pr — the change must stay active for `/opsx:address-review`.
 - Handles the case where the PR already exists (push updates it, reuses URL).
-- Archive happens on the feature branch before push — it becomes part of the PR.
