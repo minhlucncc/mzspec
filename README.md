@@ -1,28 +1,25 @@
 # mzspec
 
-**A reusable, installable spec-driven delivery pipeline for AI coding agents — built on top of
-[OpenSpec](https://github.com/Fission-AI/OpenSpec).**
+**A reusable, installable spec-driven delivery pipeline for AI coding agents.**
 
-OpenSpec gives you the spec artifacts (`openspec/specs`, `openspec/changes`, the `openspec` CLI,
-and the base `/opsx:propose|sync|archive` commands). **mzspec adds the delivery layer on
-top of those same artifacts**: a gated, test-first ship pipeline and a polyglot quality-gate
-engine — so you get the full lifecycle on any project with one install.
+mzspec provides a gated, test-first ship pipeline and a polyglot quality-gate
+engine — so you get the full lifecycle on any project with one install. It uses
+the same artifact model as [OpenSpec](https://github.com/Fission-AI/OpenSpec)
+(`openspec/specs`, `openspec/changes`, the archive) with all functionality
+implemented natively — no external CLI dependency required.
 
 ```
-OpenSpec (base)            mzspec (this repo, on top)
-─────────────────          ──────────────────────────────────────────────
-/opsx:propose               /opsx:spec → /opsx:ship-plan → /opsx:ship-code
-                            → /opsx:address-review / /opsx:author-review
-/opsx:sync|archive          /opsx:merge-pr
-                            + the gate-resolver/runner + gate plugin contract
-                            + engineering-practice skills
-                            (all artifacts still live in openspec/)
+/opsx:propose      → /opsx:spec → /opsx:ship-plan → /opsx:ship-code
+                   → /opsx:address-review / /opsx:author-review
+/opsx:sync|archive → /opsx:merge-pr
+                   + the gate-resolver/runner + engineering-practice skills
+                   (all artifacts live in openspec/)
 ```
 
 ## Quick start
 
 ```bash
-# Requires: node, git, and OpenSpec (npm i -g @fission-ai/openspec)
+# Requires: node and git
 
 # 1. Install the core pipeline
 curl -fsSL https://raw.githubusercontent.com/minhlucncc/mzspec/main/scripts/install.sh | bash
@@ -57,7 +54,7 @@ Extensions are self-contained in `extensions/<name>/` with their own `install.sh
 
 | Layer | What | Where it lands |
 |---|---|---|
-| **Core pipeline** | the two-PR gated ship pipeline (`spec-change`, `spec-pr`, `ship-plan`, `ship-code`, `address-review`, `author-review`, `merge-pr`) + `/opsx:*` commands + hook engine + gate resolver | `.claude/workflows/`, `.claude/commands/opsx/` |
+| **Core pipeline** | the two-PR gated ship pipeline (`spec-change`, `spec-pr`, `ship-plan`, `ship-code`, `address-review`, `author-review`, `merge-pr`) + `/opsx:*` commands + hook engine + gate resolver + native `openspec.js` CLI | `.claude/workflows/`, `.claude/commands/opsx/` |
 | **Core skills** | pipeline-essential skills (code review, TDD, spec-driven development, planning) | `.claude/skills/` |
 | **Agent skills** *(extension)* | engineering-practice skills from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) + prompt hooks for each pipeline phase | `.claude/skills/`, `openspec/hooks/` |
 | **Tasks** *(extension)* | backlog task management over local-folder / GitHub Issues / Mello | `.claude/workflows/`, `.claude/commands/opsx/` |

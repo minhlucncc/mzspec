@@ -1,9 +1,9 @@
 export const meta = {
   name: 'spec-change',
   description:
-    'Author and quality-assure an OpenSpec change spec: draft (if missing) → cross-validate → revise → report. Loads an existing change (or scaffolds one with the cNNNN- numbering convention and drafts its artifacts), then fans out one read-only critic agent per spec-review axis IN PARALLEL (Structure/validity, Clarity/KISS, Testability, Minimality/YAGNI, Consistency/DRY, Completeness), collects severity-labelled findings, and runs a revise loop that fixes Blocker/Required items and re-runs openspec validate --strict until clean (or maxRevisions). Writes openspec/changes/<change>/review/REVIEW.md and returns the verdict. Honors dryRun (review-only, no edits), reserveTokens, and maxRevisions. Mirrors the ship workflow idiom; the spec-layer counterpart of code review.',
+    'Author and quality-assure an OpenSpec change spec: draft (if missing) → cross-validate → revise → report. Loads an existing change (or scaffolds one with the cNNNN- numbering convention and drafts its artifacts), then fans out one read-only critic agent per spec-review axis IN PARALLEL (Structure/validity, Clarity/KISS, Testability, Minimality/YAGNI, Consistency/DRY, Completeness), collects severity-labelled findings, and runs a revise loop that fixes Blocker/Required items and re-runs node .claude/workflows/lib/openspec.js validate --strict until clean (or maxRevisions). Writes openspec/changes/<change>/review/REVIEW.md and returns the verdict. Honors dryRun (review-only, no edits), reserveTokens, and maxRevisions. Mirrors the ship workflow idiom; the spec-layer counterpart of code review.',
   phases: [
-    { title: 'Preflight', detail: 'openspec status + validate; load or scaffold the change' },
+    { title: 'Preflight', detail: 'node .claude/workflows/lib/openspec.js status + validate; load or scaffold the change' },
     { title: 'Hooks', detail: 'record ticket in proposal frontmatter + fire before-spec agent hook (best-effort)' },
     { title: 'Cross-validate', detail: 'one read-only critic per axis, in parallel' },
     { title: 'Revise', detail: 'fix Blocker/Required findings, re-validate (skipped on dryRun)' },
@@ -60,7 +60,7 @@ async function runAgentHook(event, contextLines) {
 
 // ---------------------------------------------------------------- the six review axes (single source of truth)
 const AXES = [
-  { key: 'structure', title: 'Structure & validity', brief: 'openspec validate --strict passes; Purpose + Requirements; SHALL/MUST in the body line; >=1 Scenario each; delta uses ADDED/MODIFIED/REMOVED/RENAMED with the FULL requirement on MODIFY; MODIFIED/REMOVED names exist in the baseline spec. Structural failures are Blockers.' },
+  { key: 'structure', title: 'Structure & validity', brief: 'node .claude/workflows/lib/openspec.js validate --strict passes; Purpose + Requirements; SHALL/MUST in the body line; >=1 Scenario each; delta uses ADDED/MODIFIED/REMOVED/RENAMED with the FULL requirement on MODIFY; MODIFIED/REMOVED names exist in the baseline spec. Structural failures are Blockers.' },
   { key: 'clarity', title: 'Clarity & KISS', brief: 'one requirement = one behavior; no "and...and..." packing across distinct concerns; plain-language bodies; specific requirement names.' },
   { key: 'testability', title: 'Testability', brief: 'every scenario decidable with concrete literals and a definite WHEN/THEN; NO soft MAY / "to the extent of" in an intended-behavior THEN (isolate true optionality); edge/negative scenarios where they matter.' },
   { key: 'minimality', title: 'Minimality & YAGNI', brief: 'normative requirements describe only in-scope/built behavior; future options (extra backends, multi-module, unused forms) belong in design.md, not requirements; spec behavior, not process ("tests MUST pass" is a task); no requirement that changes no test.' },
@@ -74,9 +74,9 @@ const PREFLIGHT = {
   required: ['exists', 'ready', 'reason', 'changeRoot', 'tasksPath', 'specPaths'],
   properties: {
     exists: { type: 'boolean', description: 'true if the change directory already exists' },
-    ready: { type: 'boolean', description: 'true if the change exists, openspec validate ran, and proposal/tasks + >=1 delta spec are present' },
+    ready: { type: 'boolean', description: 'true if the change exists, node .claude/workflows/lib/openspec.js validate ran, and proposal/tasks + >=1 delta spec are present' },
     reason: { type: 'string' },
-    validatePass: { type: 'boolean', description: 'whether openspec validate --strict passed (false if it did not run)' },
+    validatePass: { type: 'boolean', description: 'whether node .claude/workflows/lib/openspec.js validate --strict passed (false if it did not run)' },
     changeRoot: { type: 'string' },
     proposalPath: { type: ['string', 'null'] },
     designPath: { type: ['string', 'null'] },
@@ -108,7 +108,7 @@ const REVISE = {
   type: 'object', additionalProperties: false, required: ['applied', 'validatePass', 'remaining', 'notes'],
   properties: {
     applied: { type: 'integer', description: 'number of Blocker/Required findings actually fixed in the artifacts' },
-    validatePass: { type: 'boolean', description: 'openspec validate --strict result AFTER edits' },
+    validatePass: { type: 'boolean', description: 'node .claude/workflows/lib/openspec.js validate --strict result AFTER edits' },
     remaining: { type: 'array', items: FINDING, description: 'Blocker/Required findings NOT resolved (with reason in problem)' },
     notes: { type: 'string' },
   },
@@ -129,10 +129,10 @@ phase('Preflight')
 let pre = await agent(
   [
     `Preflight for OpenSpec change "${change}". Use Bash. Read-only except the scaffold step below.`,
-    `1. Check if openspec/changes/${change}/ exists. Run: openspec status --change "${change}" --json (it errors if absent).`,
-    `2. If it EXISTS: parse changeRoot, proposal/design/tasks artifact paths, and the delta spec.md paths; read proposal.md for a one-line title; run openspec validate "${change}" --strict and report validatePass. Set exists=true, ready=(proposal+tasks+>=1 delta spec present).`,
+    `1. Check if openspec/changes/${change}/ exists. Run: node .claude/workflows/lib/openspec.js status --change "${change}" --json (it errors if absent).`,
+    `2. If it EXISTS: parse changeRoot, proposal/design/tasks artifact paths, and the delta spec.md paths; read proposal.md for a one-line title; run node .claude/workflows/lib/openspec.js validate "${change}" --strict and report validatePass. Set exists=true, ready=(proposal+tasks+>=1 delta spec present).`,
     !dryRun && slug
-      ? `3. If it does NOT exist: scaffold it now. The change name "${change}" is the target; create it via "openspec new change "${change}"" (names MUST start with a letter — the cNNNN- convention satisfies this), then draft proposal.md, the delta spec(s) under specs/<capability>/, design.md, and tasks.md following ${SKILL('openspec-propose')} and ${SKILL('spec-driven-development')} (use openspec instructions <artifact> --change "${change}" --json templates). Then set exists=true and return the resolved paths.`
+      ? `3. If it does NOT exist: scaffold it now. The change name "${change}" is the target; create it via "node .claude/workflows/lib/openspec.js new change "${change}"" (names MUST start with a letter — the cNNNN- convention satisfies this), then draft proposal.md, the delta spec(s) under specs/<capability>/, design.md, and tasks.md following ${SKILL('openspec-propose')} and ${SKILL('spec-driven-development')} (use node .claude/workflows/lib/openspec.js instructions <artifact> --change "${change}" --json templates). Then set exists=true and return the resolved paths.`
       : `3. If it does NOT exist: set exists=false, ready=false, reason="change not found"${dryRun ? ' (dryRun: not scaffolding)' : ' (no slug given to draft)'} and STOP without creating anything.`,
     !dryRun ? `4. LIFECYCLE (best-effort — NEVER fail preflight on this): once the change EXISTS, run \`node .claude/workflows/lib/lifecycle.js before-spec --change "${change}"\` to log "spec started" on the linked ticket. It no-ops when the change isn't linked to a ticket; on any error, log and CONTINUE.` : ``,
     `Return the structured result. The actionContext.mode must be spec-driven/repo-local; if it is workspace-planning, set ready=false and say so.`,
@@ -183,7 +183,7 @@ const reviews = (await parallel(
         `Apply ${reviewSkill}. This is a READ-ONLY review — do NOT edit any file.`,
         CONTEXT,
         `Axis focus: ${ax.brief}`,
-        ax.key === 'structure' ? `Run: openspec validate "${change}" --strict --no-interactive — a failure is a Blocker; quote the error.` : '',
+        ax.key === 'structure' ? `Run: node .claude/workflows/lib/openspec.js validate "${change}" --strict --no-interactive — a failure is a Blocker; quote the error.` : '',
         ax.key === 'consistency' || ax.key === 'completeness' ? `You MAY read the baseline openspec/specs/<capability>/spec.md and CLAUDE.md to cross-check.` : '',
         `Return findings strictly scoped to THIS axis. Each finding: severity (Blocker/Required/Nit/FYI), location (file + requirement/scenario), problem, suggestion. If the axis is clean, return an empty findings array with a one-line summary.`,
       ].filter(Boolean).join('\n'),
@@ -216,7 +216,7 @@ if (dryRun) {
         CONTEXT,
         `Findings to fix:`,
         ...open.map((f, i) => `${i + 1}. [${f.severity}] (${f.axis}) ${f.location} — ${f.problem} → ${f.suggestion}`),
-        `Make the minimal edits that resolve each finding without introducing new requirements beyond scope. Keep deltas in ADDED/MODIFIED/REMOVED/RENAMED form. Then run: openspec validate "${change}" --strict --no-interactive and report validatePass.`,
+        `Make the minimal edits that resolve each finding without introducing new requirements beyond scope. Keep deltas in ADDED/MODIFIED/REMOVED/RENAMED form. Then run: node .claude/workflows/lib/openspec.js validate "${change}" --strict --no-interactive and report validatePass.`,
         `Return applied (count fixed), validatePass, and remaining (any Blocker/Required you could NOT resolve, with the reason in problem and the original axis preserved).`,
       ].join('\n'),
       { schema: REVISE, label: `revise:${revisions}`, phase: 'Revise', agentType: 'general-purpose' },
@@ -236,7 +236,7 @@ const reportLines = findings.map((f) => `- **${f.severity}** _(${f.axis})_ ${f.l
 const rep = await agent(
   [
     `Write the spec-review report for OpenSpec change "${change}" to "${pre.changeRoot}/review/REVIEW.md" (create the dir). Use Bash/Write.`,
-    `Header: "# Spec review — ${change}${date ? ` (${date})` : ''}" then "Verdict: ${verdict.toUpperCase()}", the axes reviewed (${AXES.map((a) => a.title).join('; ')}), revisions run (${revisions}), and openspec validate: ${lastValidate ? 'pass' : 'NOT passing'}.`,
+    `Header: "# Spec review — ${change}${date ? ` (${date})` : ''}" then "Verdict: ${verdict.toUpperCase()}", the axes reviewed (${AXES.map((a) => a.title).join('; ')}), revisions run (${revisions}), and node .claude/workflows/lib/openspec.js validate: ${lastValidate ? 'pass' : 'NOT passing'}.`,
     findings.length ? `Then a "## Findings" section listing each item verbatim:\n${reportLines.join('\n')}` : `Then "## Findings\\n_No Blocker/Required findings; spec is clean._"`,
     `Set verdict="approve" only if there are no Blocker/Required findings (open count is ${openCount}). Return written, the path, and the verdict.`,
   ].join('\n'),

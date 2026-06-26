@@ -1,12 +1,12 @@
 export const meta = {
   name: 'ship-code',
   description:
-    'Implement an OpenSpec change against an ALREADY-MERGED spec contract (stage 3-5 of the platform workflow; the spec PR from /opsx:spec-pr must be merged first). REMOTE is the default. Base sync (REMOTE paths: git fetch origin <base> → switch to <base> → merge --ff-only origin/<base>, so the change is implemented on top of the latest base; never auto-stashes; --local skips it and ships from feat/<change>) → Preflight (tools+toolchain, validate, clean tree, branch, load .handoff/<change>/plan.json, assert the contract is on base) → for EACH unit Red→Green→one commit → Verify (resolver-selected per-toolchain gates — uv/go/pnpm + ci-free-gates.sh + coverage + openspec validate, repair loop) → Review (code-review-and-quality + security-and-hardening audit; advisory on remote, gates the merge on --local) → Evidence → Sync RECONCILE (re-sync delta vs canonical; a non-empty canonical diff = the contract drifted during implementation → STOP and send back to /opsx:spec + /opsx:spec-pr). REMOTE path: CHANGELOG entry → chore commit (evidence+changelog only; specs already on base) → push + open/update the code PR with the agent review findings + a link to the merged spec PR (stops at PR opened, no auto-merge). LOCAL escape hatch (args.local=true) instead bundles the spec sync, merges feat/<change> into <base> locally, re-verifies, archives, optional tag/PR. --worktree runs all implementation phases inside an isolated git worktree (main checkout stays on <base>; pushes and PR creation are deferred for human local verification). Honors dryRun, only:<unit>, retryBlocked, a token budget reserve, mergeStrategy, bump, noPushMain, archive, skipReview, openPr, worktree, and base.',
+    'Implement an OpenSpec change against an ALREADY-MERGED spec contract (stage 3-5 of the platform workflow; the spec PR from /opsx:spec-pr must be merged first). REMOTE is the default. Base sync (REMOTE paths: git fetch origin <base> → switch to <base> → merge --ff-only origin/<base>, so the change is implemented on top of the latest base; never auto-stashes; --local skips it and ships from feat/<change>) → Preflight (tools+toolchain, validate, clean tree, branch, load .handoff/<change>/plan.json, assert the contract is on base) → for EACH unit Red→Green→one commit → Verify (resolver-selected per-toolchain gates — uv/go/pnpm + ci-free-gates.sh + coverage + node .claude/workflows/lib/openspec.js validate, repair loop) → Review (code-review-and-quality + security-and-hardening audit; advisory on remote, gates the merge on --local) → Evidence → Sync RECONCILE (re-sync delta vs canonical; a non-empty canonical diff = the contract drifted during implementation → STOP and send back to /opsx:spec + /opsx:spec-pr). REMOTE path: CHANGELOG entry → chore commit (evidence+changelog only; specs already on base) → push + open/update the code PR with the agent review findings + a link to the merged spec PR (stops at PR opened, no auto-merge). LOCAL escape hatch (args.local=true) instead bundles the spec sync, merges feat/<change> into <base> locally, re-verifies, archives, optional tag/PR. --worktree runs all implementation phases inside an isolated git worktree (main checkout stays on <base>; pushes and PR creation are deferred for human local verification). Honors dryRun, only:<unit>, retryBlocked, a token budget reserve, mergeStrategy, bump, noPushMain, archive, skipReview, openPr, worktree, and base.',
   phases: [
     { title: 'Base sync',           detail: 'remote paths: git fetch origin <base> → switch to <base> → merge --ff-only origin/<base> (sync base to origin before preflight; clean tree required, never auto-stash; --local skips — it ships from feat/<change>)' },
     { title: 'Preflight',           detail: 'tools+toolchain, validate, branch, load handoff (--local checks base + branch slug match)' },
     { title: 'Implement',           detail: 'per unit Red→Green→one commit (task-by-task). --worktree: also verify, review, evidence, sync, changelog, chore commit all in isolated worktree; then /opsx:ship-pr for PR' },
-    { title: 'Verify',              detail: 'resolver-selected per-toolchain gates (uv/go/pnpm) + ci-free-gates.sh + coverage + openspec validate, repair loop' },
+    { title: 'Verify',              detail: 'resolver-selected per-toolchain gates (uv/go/pnpm) + ci-free-gates.sh + coverage + node .claude/workflows/lib/openspec.js validate, repair loop' },
     { title: 'Review',              detail: 'code-review-and-quality + security-and-hardening audit of diff vs base (gates --local; advisory + posted on PR for remote)' },
     { title: 'Evidence',            detail: 'write test results, coverage, gates to evidence/' },
     { title: 'Merge',               detail: '(--local) git switch <base> && git merge --{squash,no-ff,ff-only} feat/<change>' },
@@ -325,12 +325,12 @@ phase('Preflight')
 const pre = await agent(
   [
     `Preflight ship-code for OpenSpec change "${change}" on branch "${branch}"${local ? ' (LOCAL PATH — base="' + base + '", mergeStrategy=' + mergeStrategy + ')' : ''}. Use Bash. Steps:`,
-    `1. TOOLCHAIN + TOOLS (polyglot): command -v uv go pnpm openspec node. Resolve which toolchains this change actually needs: \`git diff --name-only ${base}...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin --json\` → its "toolchains" array. Only the tools for those toolchains are required (py→uv, go→go 1.${REQUIRED_GO_MINOR}+, ts→pnpm; openspec+node always). For go, run \`go version\`; if < 1.${REQUIRED_GO_MINOR}, look for a newer one via \`which -a go\` / \`ls /opt/homebrew/Cellar/go@*/bin/go\` and export PATH; if a needed tool is missing entirely set toolchainOk=false+ok=false+reason (e.g. "go >= 1.${REQUIRED_GO_MINOR} not found; brew install go") and STOP.`,
+    `1. TOOLCHAIN + TOOLS (polyglot): test -f .claude/workflows/lib/openspec.js && command -v uv go pnpm node. Resolve which toolchains this change actually needs: \`git diff --name-only ${base}...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin --json\` → its "toolchains" array. Only the tools for those toolchains are required (py→uv, go→go 1.${REQUIRED_GO_MINOR}+, ts→pnpm; openspec.js + node always). For go, run \`go version\`; if < 1.${REQUIRED_GO_MINOR}, look for a newer one via \`which -a go\` / \`ls /opt/homebrew/Cellar/go@*/bin/go\` and export PATH; if a needed tool is missing entirely set toolchainOk=false+ok=false+reason (e.g. "go >= 1.${REQUIRED_GO_MINOR} not found; brew install go") and STOP.`,
     `   - Capture the resolved toolchains + versions; set toolchainOk=true when every NEEDED tool is present.`,
     `   - gh is OPTIONAL — only required when args.local is false (the local path never calls gh).`,
     `2. Load the handoff: read "${handoffDir}/plan.json". If it does not exist, set ok=false, reason="no handoff — run /opsx:ship-plan ${change} first" and STOP. It contains a "units" array (a FEW test-first work-units). Map EACH unit to one entry in the returned pairs array (one Red→Green→commit per unit), ordered by ascending id: pair=unit.id; title=unit.title; coversTasks=unit.coversTasks; allDone=(unit.status=="done"); file (for both test and code) = "${handoffDir}/tasks/<unit.id>-<unit.slug>.md"; test={id:unit.id, role:"test", status:unit.status, file, deliverables:unit.testDeliverables, verify:unit.verify, skipRed:unit.skipRed}; code={id:unit.id, role:"code", status:unit.status, file, deliverables:unit.codeDeliverables, verify:unit.verify}. (Legacy fallback: if plan.json has the old "tasks" array instead of "units", group tasks into pairs by their "pair" field and set deliverables=[task.deliverable].)`,
-    `3. openspec status --change "${change}" --json — capture changeRoot, proposal/tasks paths, delta-spec paths, title. openspec list --json — capture isActive (change present in active list) and isArchived (change present in archive list).`,
-    `4. openspec validate "${change}" --strict (fallback non-strict) — MUST pass else ok=false+reason+STOP.`,
+    `3. node .claude/workflows/lib/openspec.js status --change "${change}" --json — capture changeRoot, proposal/tasks paths, delta-spec paths, title. node .claude/workflows/lib/openspec.js list --json — capture isActive (change present in active list) and isArchived (change present in archive list).`,
+    `4. node .claude/workflows/lib/openspec.js validate "${change}" --strict (fallback non-strict) — MUST pass else ok=false+reason+STOP.`,
     `5. WORKING-TREE HYGIENE: git status --porcelain. ${handoffDir}/ is gitignored and does not count. Two cases:`,
     `   a. The ONLY tracked changes are under .claude/ (workflow / command / skill dev in flight, unrelated to the change) → treePolicy="dirty-workflow-dev-only", warn but proceed.`,
     `   b. Any other tracked file is dirty → treePolicy="dirty-blocked", ok=false, reason="uncommitted tracked changes outside .claude/; commit or stash first", STOP.`,
@@ -434,7 +434,7 @@ if (worktree) {
       ``,
       `3. FULL VERIFY (resolver-driven):`,
       `   - git diff --name-only ${base}...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin → run EVERY printed gate`,
-      `   - openspec validate "${change}" --strict (best-effort)`,
+      `   - node .claude/workflows/lib/openspec.js validate "${change}" --strict (best-effort)`,
       `   - If a gate fails, fix and re-run (max ${maxRepairs} repair attempts)`,
       `   - Capture gatesRun array and coverage string`,
       ``,
@@ -649,7 +649,7 @@ phase('Evidence')
 const evidence = await agent(
   [
     `Write the evidence bundle for change "${change}" into "${pre.changeRoot}/evidence/" (create dir). Use Bash/Write. It moves to the archive with the change and is linked from the PR.`,
-    `- gates.md — a table \`toolchain | unitDir | gate | command | result\` of the gates that ran (${gatesRun.join('; ')}), incl. the free bench ladder and \`openspec validate\`, plus the llmGates tier status; the per-unit commits (${commits.map((c) => c.pair + ':' + c.sha).join(', ')}), repair count (${repairs}), and the governing skills (${(await getPromptHooks('on-ship-end', { change }).then(h => h.join(', ')))}).`,
+    `- gates.md — a table \`toolchain | unitDir | gate | command | result\` of the gates that ran (${gatesRun.join('; ')}), incl. the free bench ladder and \`node .claude/workflows/lib/openspec.js validate\`, plus the llmGates tier status; the per-unit commits (${commits.map((c) => c.pair + ':' + c.sha).join(', ')}), repair count (${repairs}), and the governing skills (${(await getPromptHooks('on-ship-end', { change }).then(h => h.join(', ')))}).`,
     `- test-results.md — concatenate the per-toolchain test tails: \`uv --directory <member> run python -m pytest -q 2>&1 | tail -40\` per touched Python member, \`(cd <module> && go test -race ./...) 2>&1 | tail -40\` per Go module, \`(cd apps/portal && pnpm test) 2>&1 | tail -40\` if the portal was touched (note DB-dependent pytest skips without TEST_DATABASE_URL; e2e skips without browsers — skips are not failures).`,
     `- coverage.txt — one block per toolchain (py: pytest --cov term-missing summary; go: \`go tool cover -func\` tail; ts: vitest coverage summary), else "coverage not captured".`,
     `Concise + factual. Do NOT commit (a later step commits evidence). Return the dir + file list.`,
@@ -749,7 +749,7 @@ if (local) {
       `Post-merge re-verify on "${base}" AFTER merging "${branch}" for change "${change}". DETERMINISTIC gate — pass is exit-code-driven. Use Bash, run in order:`,
       `1. git rev-parse --abbrev-ref HEAD — must equal "${base}". Else pass=false, reason="not on ${base}".`,
       `2. Resolve gates from the just-merged delta: \`git diff --name-only HEAD~1 HEAD | node .claude/workflows/lib/gate-resolver.js --stdin\` and RUN every printed per-toolchain gate (uv/go/pnpm + ci-free-gates.sh as applicable). DB-dependent pytest skips without TEST_DATABASE_URL/pgvector (not a failure).`,
-      `3. openspec validate "${change}" --strict (fallback non-strict). Capture a short per-toolchain coverage summary.`,
+      `3. node .claude/workflows/lib/openspec.js validate "${change}" --strict (fallback non-strict). Capture a short per-toolchain coverage summary.`,
       `pass=true only if every gate that ran exited 0 and all tests are green. List every command run in gatesRun. On failure, pass=false + first failing gate's trimmed output in failureLog. Do not edit files.`,
     ].join('\n'),
     { schema: VERDICT, label: 'post-merge-verify', phase: 'Post-merge verify', agentType: 'general-purpose' },
@@ -776,13 +776,13 @@ if (local) {
     archived = await agent(
       [
         `Archive OpenSpec change "${change}". ${await getPromptHooks('on-archive', { change }).then(h => h.join(' '))}`,
-        `1. openspec list --json — confirm "${change}" is ACTIVE. If not active (already archived?), set archived=false, reason="already archived or not in active list — re-run is a no-op", STOP.`,
+        `1. node .claude/workflows/lib/openspec.js list --json — confirm "${change}" is ACTIVE. If not active (already archived?), set archived=false, reason="already archived or not in active list — re-run is a no-op", STOP.`,
         `2. If the directory "${archiveTarget}" already exists, set archived=false, reason="target exists: ${archiveTarget}", STOP.`,
         `3. mkdir -p openspec/changes/archive && mv "openspec/changes/${change}" "${archiveTarget}".`,
         `4. Create or append to openspec/changes/archive/INDEX.md (one row per archived change):`,
         `   | ${DATE} | ${change} | ${mergeResult.mergeSha} | <title from proposal.md> |`,
         `   (Use a markdown table with header row; create the file with the header row if it does not exist.)`,
-        `5. Verify: openspec list --json — "${change}" must now NOT be active. openspec status --change "${change}" returns "not found" (that is success).`,
+        `5. Verify: node .claude/workflows/lib/openspec.js list --json — "${change}" must now NOT be active. node .claude/workflows/lib/openspec.js status --change "${change}" returns "not found" (that is success).`,
         `6. Do NOT commit — the Cleanup phase bundles a chore commit.`,
         `Return the structured result.`,
       ].join('\n'),

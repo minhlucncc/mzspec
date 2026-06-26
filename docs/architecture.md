@@ -1,6 +1,6 @@
 # Architecture
 
-mzspec is a thin delivery layer on top of OpenSpec. This doc explains the seam and the state
+mzspec delivers the spec-driven pipeline natively (using its built-in openspec.js). This doc explains the seam and the state
 machine.
 
 ## The layering: mzspec on OpenSpec

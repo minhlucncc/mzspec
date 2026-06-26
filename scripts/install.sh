@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # mzspec installer — vendor the OpenSpec ship pipeline + quality-gate engine into a
-# project's .claude/ tree. mzspec layers ON TOP of OpenSpec and reuses the openspec/
+# project's .claude/ tree. mzspec uses the openspec/
 # folder for artifacts, so OpenSpec must be present (or initialized) first.
 #
 # Usage:
@@ -14,7 +14,7 @@
 #   --upgrade        Update an existing install: refresh mzspec-owned files to the
 #                    current version (implies --force) AND run migrate.sh to prune
 #                    artifacts of removed features.
-#   --no-openspec    Do not attempt `openspec init` if openspec/ is missing
+#   --no-openspec    Do not scaffold openspec/ directory if missing
 #   -h, --help       Show this help
 set -euo pipefail
 
@@ -57,13 +57,13 @@ DEST="$(cd "$DEST" && pwd)" || die "--dest does not exist: $DEST"
 if [ "$UPGRADE" -eq 1 ]; then log "upgrading install at: $DEST (refresh + migrate)"; else log "installing into: $DEST"; fi
 
 if [ ! -d "$DEST/openspec" ]; then
-  if [ "$DO_OPENSPEC" -eq 1 ] && command -v openspec >/dev/null 2>&1; then
-    warn "no openspec/ folder found — running 'openspec init' (mzspec reuses it for artifacts)"
-    ( cd "$DEST" && openspec init --tools claude ) || warn "openspec init did not complete; continuing"
+  if [ "$DO_OPENSPEC" -eq 1 ]; then
+    warn "no openspec/ folder found — scaffolding it now (native mzspec)"
+    node "$SRC/lib/openspec.js" init || warn "openspec init did not complete; continuing"
   else
-    warn "no openspec/ folder found. mzspec builds on OpenSpec — install it and run 'openspec init':"
-    warn "    npm i -g @fission-ai/openspec && openspec init --tools claude"
-  fi
+    warn "no openspec/ folder found. mzspec uses openspec/ for artifacts."
+    warn "    run: node path/to/mzspec/lib/openspec.js init"
+fi
 fi
 
 # ---- fetch a pinned copy of mzspec --------------------------------------------
