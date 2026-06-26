@@ -28,28 +28,28 @@ OpenSpec (base)            mzspec (this repo, on top)
 curl -fsSL https://raw.githubusercontent.com/minhlucncc/mzspec/main/scripts/install.sh | bash
 
 # 2. Install extensions
-./scripts/mzspec install agent-skills
-./scripts/mzspec install tasks
+./mzspec install agent-skills
+./mzspec install tasks
 
 # 3. List available extensions
-./scripts/mzspec list
+./mzspec list
 ```
 
-The installer vendors the core pipeline into your project's `.claude/` and writes an **`SDD_GUIDE.md`**
-that orients humans + agents to the `spec → ship` workflow. Gates are **zero-config** —
+The installer vendors the core pipeline into your project's `.claude/`, writes an **`SDD_GUIDE.md`**,
+and installs the **`./mzspec`** CLI for managing extensions. Gates are **zero-config** —
 auto-discovered from your repo's own manifests (`pyproject.toml`/`go.mod`/`pnpm-workspace.yaml`),
 so no `mzspec.config.json` is required.
 
 ## Extension management
 
-`./scripts/mzspec` is the entry point for managing extensions:
+`./mzspec` is the entry point for managing extensions:
 
 | Command | What it does |
 |---|---|
-| `./scripts/mzspec list` | List available extensions |
-| `./scripts/mzspec info <name>` | Show extension details |
-| `./scripts/mzspec install <name> [--force]` | Install an extension |
-| `./scripts/mzspec uninstall <name>` | Remove an extension |
+| `./mzspec list` | List available extensions |
+| `./mzspec info <name>` | Show extension details |
+| `./mzspec install <name> [--force]` | Install an extension |
+| `./mzspec uninstall <name>` | Remove an extension |
 
 Extensions are self-contained in `extensions/<name>/` with their own `install.sh` and `uninstall.sh`.
 
@@ -57,20 +57,18 @@ Extensions are self-contained in `extensions/<name>/` with their own `install.sh
 
 | Layer | What | Where it lands |
 |---|---|---|
-| **Core pipeline** | the two-PR gated ship pipeline (`spec-change`, `spec-pr`, `ship-plan`, `ship-code`, `address-review`, `author-review`, `merge-pr`) + the `/opsx:*` commands + hook engine + gate resolver | `.claude/workflows/`, `.claude/commands/opsx/` |
-| **Gate contract** | the gate plugin contract + starter gates | `.claude/mzspec-gates/` |
+| **Core pipeline** | the two-PR gated ship pipeline (`spec-change`, `spec-pr`, `ship-plan`, `ship-code`, `address-review`, `author-review`, `merge-pr`) + `/opsx:*` commands + hook engine + gate resolver | `.claude/workflows/`, `.claude/commands/opsx/` |
 | **Core skills** | pipeline-essential skills (code review, TDD, spec-driven development, planning) | `.claude/skills/` |
-| **Agent skills** *(extension)* | engineering-practice skills from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) — TDD, code review, security, etc. + prompt hooks for each pipeline phase | `.claude/skills/`, `openspec/hooks/` |
-| **Tasks** *(extension)* | backlog task management — `/opsx:task-create\|list\|pull\|push\|log` over local-folder / GitHub Issues / Mello | `.claude/workflows/`, `.claude/commands/opsx/` |
+| **Agent skills** *(extension)* | engineering-practice skills from [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) + prompt hooks for each pipeline phase | `.claude/skills/`, `openspec/hooks/` |
+| **Tasks** *(extension)* | backlog task management over local-folder / GitHub Issues / Mello | `.claude/workflows/`, `.claude/commands/opsx/` |
 
 ## How it works
 
 mzspec never invents a parallel artifact store — evidence, handoffs, specs and archives all
 live under `openspec/`. The gate-resolver resolves a diff to gates through a 3-step chain:
 an `openspec/hooks/resolve-gates` executable (full override) → a `mzspec.config.json` (explicit
-pin) → **zero-config auto-discovery** from your manifests (`lib/discover.js`, the default). With
-the meknow example config it still emits a **byte-identical** plan to the original hand-rolled
-resolver (`node --test lib/gate-resolver.test.js`). Architecture: [docs/architecture.md](docs/architecture.md).
+pin) → **zero-config auto-discovery** from your manifests (`lib/discover.js`, the default).
+Architecture: [docs/architecture.md](docs/architecture.md).
 
 ## Customize
 
