@@ -1,6 +1,6 @@
 {
   "$schema": "../../mzspec.config.schema.json",
-  "mzspecVersion": "0.1.0",
+  "mzspecVersion": "1.1.0",
   "openspec": {
     "changesDir": "openspec/changes",
     "specsDir": "openspec/specs",
