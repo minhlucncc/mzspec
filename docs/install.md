@@ -49,13 +49,13 @@ Extensions are self-contained and managed via the `scripts/mzspec` CLI:
 
 ```bash
 # List available extensions
-bash scripts/mzspec list
+./mzspec list
 
 # Install an extension
-bash scripts/mzspec install agent-skills --dest /path/to/project --force
+./mzspec install agent-skills --dest /path/to/project --force
 
 # Remove an extension
-bash scripts/mzspec uninstall agent-skills --dest /path/to/project
+./mzspec uninstall agent-skills --dest /path/to/project
 ```
 
 Extensions live in `extensions/<name>/` with their own `install.sh` and `uninstall.sh`.
@@ -86,5 +86,5 @@ bash scripts/migrate.sh --dest /path/to/project          # or --dry-run to previ
    `git diff --name-only <base>...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin`.
 2. Need to override a gate? Drop an `openspec/hooks/resolve-gates` executable or add an
    `mzspec.config.json` — both optional.
-3. Install extensions: `bash scripts/mzspec install agent-skills`
+3. Install extensions: `./mzspec install agent-skills`
 4. Drive the pipeline: `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship-plan` → `/opsx:ship-code`.

@@ -117,7 +117,7 @@ vendor_dir "$SRC/lib"            "$DEST/.claude/workflows/lib"   "$CORE_EXCL"
 vendor_dir "$SRC/core/commands"  "$DEST/.claude/commands"        "$CORE_EXCL"
 vendor_dir "$SRC/core/skills"    "$DEST/.claude/skills"
 vendor      "$SRC/core/workflows/lib/hook-engine.js" "$DEST/.claude/workflows/lib/hook-engine.js"
-
+vendor      "$SRC/scripts/mzspec"              "$DEST/mzspec"
 # SDD_GUIDE.md — orient humans + agents to the spec->ship workflow.
 if [ ! -e "$DEST/SDD_GUIDE.md" ]; then
   cp "$SRC/templates/SDD_GUIDE.md" "$DEST/SDD_GUIDE.md"
@@ -152,5 +152,5 @@ log "done — $copied file(s) installed, $skipped left in place (use --force to 
 log "next:"
 log "  0. read SDD_GUIDE.md — the spec->ship workflow in 2 minutes"
 log "  1. gates are ZERO-CONFIG — auto-discovered from your manifests"
-log "  2. install extensions: bash scripts/mzspec install agent-skills"
+log "  2. install extensions: ./mzspec install agent-skills"
 log "  3. run the pipeline:  /opsx:spec  /opsx:spec-pr  /opsx:ship-plan  /opsx:ship-code"
