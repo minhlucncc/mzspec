@@ -101,7 +101,7 @@ files are migrated on next write by `lib/task-link.js`):
 
 Drop `lib/task-sources/jira.js` implementing the four verbs, register it in
 `lib/task-sources/index.js` `ADAPTERS`, and add a `taskSources` entry. See
-[`extensions/task-sources/CONTRACT.md`](../extensions/task-sources/CONTRACT.md).
+[`extensions/tasks/task-sources/CONTRACT.md`](../extensions/tasks/task-sources/CONTRACT.md).
 
 ## Automatic lifecycle wiring
 
@@ -121,6 +121,6 @@ when the change isn't linked to a ticket.
 | `after-code-pr-merged` | `/opsx:merge-pr` (feat branch) | comment + traceability; status → `done`; archive |
 
 Adapters gained a `setAssignee(id, login)` verb for this (see
-[`extensions/task-sources/CONTRACT.md`](../extensions/task-sources/CONTRACT.md)). Customize or
+[`extensions/tasks/task-sources/CONTRACT.md`](../extensions/tasks/task-sources/CONTRACT.md)). Customize or
 extend any event with an executable `openspec/hooks/on-<event>` (see
-[`extensions/hooks/README.md`](../extensions/hooks/README.md)).
+[`docs/hooks.md`](../docs/hooks.md)).

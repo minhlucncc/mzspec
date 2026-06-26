@@ -1,4 +1,7 @@
 # Lifecycle hooks — wiring a change to a backlog board
+> Lifecycle hooks fire backlog ticket updates at each pipeline stage.
+> They are part of the **tasks extension** (`extensions/tasks/`).
+> For skill injection hooks, see [hooks.md](hooks.md).
 
 mzspec fires a **lifecycle event** at each stage of the spec→ship pipeline. A project can react to
 those events to keep an external backlog (a GitHub Projects board, an issue tracker, Slack, …) in

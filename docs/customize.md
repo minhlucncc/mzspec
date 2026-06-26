@@ -1,7 +1,7 @@
 # Customizing mzspec for your project
 
-Everything project-specific is in **`mzspec.config.json`** at your repo root (validated by
-`mzspec.config.schema.json`). You should not need to edit any vendored `.claude/` file.
+Everything project-specific is in **`mzspec.config.json`** at your repo root.
+You should not need to edit any vendored `.claude/` file.
 
 ## Toolchains
 
@@ -68,5 +68,4 @@ List your project's hard-invariants under `invariants`. The `security-and-harden
 
 ## Reference
 
-[`examples/meknow/mzspec.config.json`](../examples/meknow/mzspec.config.json) is a complete,
-real polyglot config (Python + Go + TS) — copy it and adapt.
+See [docs/gate-plugin.md](gate-plugin.md) for gate configuration examples.

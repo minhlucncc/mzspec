@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# mzspec — extension manager CLI
+# Usage:
+#   mzspec install <extension> [--dest <path>] [--force]
+#   mzspec uninstall <extension> [--dest <path>]
+#   mzspec list [--available | --installed]
+#   mzspec info <extension>
+set -euo pipefail
+
+MZSPEC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+EXTENSIONS_DIR="$MZSPEC_DIR/extensions"
+DEST="$(pwd)"
+
+usage() {
+  sed -n '3,8p' "$0" | sed 's/^# //'
+  exit 0
+}
+
+list_available() {
+  echo "Available extensions:"
+  for ext_dir in "$EXTENSIONS_DIR"/*/; do
+    [ -d "$ext_dir" ] || continue
+    name="$(basename "$ext_dir")"
+    if [ -x "$ext_dir/install.sh" ]; then
+      echo "  $name"
+    fi
+  done
+}
+
+list_installed() {
+  echo "Not yet implemented: check openspec/extension-manifest files"
+}
+
+cmd_install() {
+  local ext="$1"; shift
+  local ext_dir="$EXTENSIONS_DIR/$ext"
+  if [ ! -d "$ext_dir" ]; then
+    echo "error: extension '$ext' not found at $ext_dir"
+    echo "available:"; list_available
+    exit 1
+  fi
+  if [ ! -x "$ext_dir/install.sh" ]; then
+    echo "error: $ext has no install.sh"
+    exit 1
+  fi
+  echo "mzspec: installing $ext ..."
+  bash "$ext_dir/install.sh" --dest "$DEST" "$@"
+  echo "mzspec: $ext installed"
+}
+
+cmd_uninstall() {
+  local ext="$1"; shift
+  local ext_dir="$EXTENSIONS_DIR/$ext"
+  if [ ! -d "$ext_dir" ]; then
+    echo "error: extension '$ext' not found"
+    exit 1
+  fi
+  if [ ! -x "$ext_dir/uninstall.sh" ]; then
+    echo "error: $ext has no uninstall.sh"
+    exit 1
+  fi
+  echo "mzspec: uninstalling $ext ..."
+  bash "$ext_dir/uninstall.sh" --dest "$DEST" "$@"
+  echo "mzspec: $ext uninstalled"
+}
+
+cmd_info() {
+  local ext="$1"
+  local ext_dir="$EXTENSIONS_DIR/$ext"
+  if [ ! -d "$ext_dir" ]; then
+    echo "error: extension '$ext' not found"
+    exit 1
+  fi
+  echo "Extension: $ext"
+  echo "Path: $ext_dir"
+  [ -x "$ext_dir/install.sh" ] && echo "install.sh: yes" || echo "install.sh: no"
+  [ -x "$ext_dir/uninstall.sh" ] && echo "uninstall.sh: yes" || echo "uninstall.sh: no"
+  [ -d "$ext_dir/skills" ] && echo "Has skills/: yes" || echo "Has skills/: no"
+  [ -d "$ext_dir/hooks" ] && echo "Has hooks/: yes" || echo "Has hooks/: no"
+  [ -d "$ext_dir/templates" ] && echo "Has templates/: yes" || echo "Has templates/: no"
+}
+
+# ---- main dispatch ---------------------------------------------------------
+
+[ "$#" -eq 0 ] && usage
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    install)
+      [ -z "${2:-}" ] && { echo "usage: mzspec install <extension> [--dest <path>]"; exit 1; }
+      ext="$2"; shift 2
+      args=()
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --dest) args+=("--dest" "$2"); shift 2 ;;
+          --force) args+=("--force"); shift ;;
+          *) args+=("$1"); shift ;;
+        esac
+      done
+      cmd_install "$ext" "${args[@]}"
+      ;;
+    uninstall)
+      [ -z "${2:-}" ] && { echo "usage: mzspec uninstall <extension> [--dest <path>]"; exit 1; }
+      ext="$2"; shift 2
+      args=()
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          --dest) args+=("--dest" "$2"); shift 2 ;;
+          *) args+=("$1"); shift ;;
+        esac
+      done
+      cmd_uninstall "$ext" "${args[@]}"
+      ;;
+    list)
+      case "${2:-}" in
+        --available|--all) list_available; shift 2 ;;
+        --installed) list_installed; shift 2 ;;
+        *) list_available; shift ;;
+      esac
+      ;;
+    info)
+      [ -z "${2:-}" ] && { echo "usage: mzspec info <extension>"; exit 1; }
+      cmd_info "$2"; shift 2 ;;
+    -h|--help) usage ;;
+    *) echo "unknown: $1"; usage ;;
+  esac
+done

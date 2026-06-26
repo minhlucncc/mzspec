@@ -11,7 +11,7 @@ complete** before any code is written. This is the authoring counterpart of
 read-only **critic per spec-review axis in parallel**, then runs a **revise loop**
 that fixes Blocker/Required findings and re-runs `openspec validate --strict`
 until the spec is clean. It writes `openspec/changes/<name>/review/REVIEW.md` and
-stops — a human then runs `/opsx:apply` or `/opsx:ship`.
+stops — a human then runs `/opsx:ship`.
 
 Use this after `/opsx:propose` (the fast single-pass draft) and before
 implementation. The quality bar is the `spec-review-and-quality` skill (six axes:
@@ -71,7 +71,7 @@ propose time instead.
 
 5. **Relay the result.** Report the Workflow's `stage`/`ok` and:
    - On **approve**: the verdict, revisions run, that `openspec validate` passes, the
-     **review report path**, and the next step — `/opsx:ship <name>` or `/opsx:apply`.
+     **review report path**, and the next step — `/opsx:ship <name>`.
    - On **revise** (Blocker/Required remain after `maxRevisions`, or dry-run): the
      open-finding count and the report path; tell the user to read the findings and
      fix them (or re-run with a higher `maxRevisions`).
@@ -84,6 +84,6 @@ propose time instead.
   to an auto-revise run.
 - This command edits only the change's artifacts under `openspec/changes/<name>/`;
   it does not implement code, sync specs, or open a PR. After approval, hand off to
-  `/opsx:apply` or `/opsx:ship`.
+  `/opsx:ship`.
 - Scaffolding a new change requires a `slug` and a non-dry run; otherwise a missing
   change aborts in preflight.

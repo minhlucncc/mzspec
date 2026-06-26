@@ -23,7 +23,7 @@ if (!change || typeof change !== 'string') {
 if (!/^[a-z][a-z0-9-]*$/.test(change)) throw new Error('Unsafe change name (must start with a letter, kebab-case): ' + change)
 
 const branch = `feat/${change}`
-const SKILL = (name) => `the \`${name}\` skill (.claude/skills/${name}/SKILL.md)`
+// Skills are injected dynamically via prompt hooks — extensions/agent-skills/Hooks/on-address-review.prompt.md
 
 // ---------------------------------------------------------------- Phase 1: Preflight — find the PR + unresolved threads
 phase('Preflight')
@@ -91,7 +91,7 @@ const RESULT = {
 }
 const res = await agent(
   [
-    `Address the ${actionable.length} actionable review comment(s) on PR #${pre.prNumber} for change "${change}", branch "${branch}". Use Bash + Edit. ${SKILL('code-review-and-quality')} and ${SKILL('test-driven-development')}.`,
+    `Address the ${actionable.length} actionable review comment(s) on PR #${pre.prNumber} for change "${change}", branch "${branch}". Use Bash + Edit. ${await getPromptHooks('on-address-review', { change }).then(h => h.join(' '))}.`,
     `Comments:`,
     ...actionable.map((t, i) => `  ${i + 1}. [${t.id}] ${t.path}:${t.line || '?'} (${t.author}): ${t.body}`),
     `For EACH actionable comment: make the MINIMAL code/test/spec change that resolves it on ${branch}. If a comment requests a behavior change that contradicts the merged spec contract, do NOT silently change it — note it in notes and leave that thread for the human (the contract changes via /opsx:spec + /opsx:spec-pr, not here).`,

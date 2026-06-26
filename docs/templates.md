@@ -112,13 +112,11 @@ node .claude/workflows/lib/templates.js remove <name>
 
 ## Install
 
-Bundled in the `templates` component:
+Templates are included with the **agent-skills** extension:
 
 ```bash
-bash install.sh --with core,gates,templates
+bash scripts/mzspec install agent-skills
 ```
 
-It vendors the `template` workflow + `lib/templates.js` + the `template-*` commands + the
-contract (`.claude/mzspec-templates/CONTRACT.md`), and drops the starter playbook(s) into
-`openspec/templates/` (skipped if you already have your own). Full contract:
-[`extensions/templates/CONTRACT.md`](../extensions/templates/CONTRACT.md).
+This installs the starter playbooks into `openspec/templates/`. To create your own:
+`/opsx:template-create`. Full contract: [`extensions/templates/CONTRACT.md`](../extensions/templates/CONTRACT.md).

@@ -72,22 +72,8 @@ const DATE = date || 'Unreleased'
 const branch = `feat/${change}`
 const handoffDir = `.handoff/${change}`
 
-// ---------------------------------------------------------------- skills wiring
-const SKILL_DIR = '.claude/skills'
-const SKILLS = {
-  Test: ['test-driven-development'],
-  Implement: ['incremental-implementation', 'code-simplification'],
-  Verify: ['debugging-and-error-recovery', 'code-review-and-quality', 'security-and-hardening'],
-  Review: ['code-review-and-quality', 'security-and-hardening'],
-  PR: ['git-workflow-and-versioning', 'documentation-and-adrs'],
-  LocalMerge: ['git-workflow-and-versioning', 'code-review-and-quality'],
-  Archive: ['git-workflow-and-versioning', 'documentation-and-adrs'],
-}
-function skillNote(p) {
-  const list = SKILLS[p] || []
-  return list.length ? `Consult these skills before acting (read each, apply its rules): ${list.map((n) => `${SKILL_DIR}/${n}/SKILL.md`).join(', ')}.` : ''
-}
-const allSkills = Array.from(new Set(Object.values(SKILLS).flat()))
+// ---------------------------------------------------------------- skills are injected dynamically via prompt hooks
+// See extensions/agent-skills/Hooks/on-<event>.prompt.md for the skill references at each phase.
 
 // ---------------------------------------------------------------- agent-form lifecycle hook (best-effort)
 // Workflow bodies cannot require() shared libs, so this compact runner is inlined per workflow.
@@ -517,7 +503,7 @@ if (worktree) {
     reviewVerdict: wtResult.reviewVerdict || 'n/a',
     reviewFindings: wtResult.reviewFindings || [],
     evidenceDir: wtResult.evidenceDir || `${pre.changeRoot}/evidence`,
-    skillsApplied: allSkills,
+    skillsApplied: [],
     specsSynced: wtResult.synced ? wtResult.synced.synced : false,
     changelogWritten: !!wtResult.changelogWritten,
     choreCommitted: !!wtResult.choreCommitted,
@@ -542,7 +528,7 @@ for (const p of runnable) {
   // --- Red
   const red = await agent(
     [
-      `Unit ${p.pair} of change "${change}" — the RED step. ${skillNote('Test')}`,
+      `Unit ${p.pair} of change "${change}" — the RED step. ${await getPromptHooks('on-test', { change }).then(h => h.join(' '))}`,
       CONTEXT,
       TOOLCHAIN_NOTE,
       `Read the unit file "${p.test.file}" (its "Test plan (Red)" section). Write ALL of this unit's test deliverables — ${testFiles} — in the deliverables' own language: pytest \`tests/test_*.py\` for Python members, table-driven \`*_test.go\` for Go modules, vitest \`*.test.ts(x)\` for the portal — with the assertions/table cases the unit specifies (drawn from the delta-spec scenarios).`,
@@ -561,7 +547,7 @@ for (const p of runnable) {
   // --- Green + single commit (red+green together)
   const green = await agent(
     [
-      `Unit ${p.pair} of change "${change}" — the GREEN step + commit. ${skillNote('Implement')}`,
+      `Unit ${p.pair} of change "${change}" — the GREEN step + commit. ${await getPromptHooks('on-implement', { change }).then(h => h.join(' '))}`,
       CONTEXT,
       TOOLCHAIN_NOTE,
       `Read the unit file "${p.code.file}" (its "Code plan (Green)" section). Make the MINIMAL production change across this unit's code deliverables — ${codeFiles} — to turn the failing test(s) from the Red step GREEN. Do not over-build.`,
@@ -607,7 +593,7 @@ while (verdict && !verdict.pass && repairs < maxRepairs) {
   log(`verify failed — repair ${repairs}/${maxRepairs}`)
   const repaired = await agent(
     [
-      `The full verify gate failed for change "${change}". Make the SMALLEST in-scope fix. ${skillNote('Verify')}`,
+      `The full verify gate failed for change "${change}". Make the SMALLEST in-scope fix. ${await getPromptHooks('on-verify', { change }).then(h => h.join(' '))}`,
       `Failing output:\n${verdict.failureLog}`,
       `Prefer fixing production code over weakening tests. Then amend it into the most relevant per-task commit (git add -A && git commit --amend --no-edit) OR a new fixup commit if it spans pairs. Do not push. If out of scope, set fixed=false.`,
     ].join('\n'),
@@ -635,7 +621,7 @@ let review = null
   } else {
     review = await agent(
       [
-        `Code review of change "${change}" on branch "${branch}" vs base "${base}". Read-only audit. ${skillNote('Review')}`,
+        `Code review of change "${change}" on branch "${branch}" vs base "${base}". Read-only audit. ${await getPromptHooks('on-review', { change }).then(h => h.join(' '))}`,
         `1. Compute the diff: git diff "${base}..${branch}" --stat ; git diff "${base}..${branch}" -- . ':(exclude)openspec/' ':(exclude).handoff/' | head -1500.`,
         `2. Categorize findings by severity: blocker / required / nit / fyi. Axes: correctness / readability / architecture / security / performance. For each finding give file:line, problem, suggestion.`,
         `3. BLOCKER criteria — any of: correctness bug; security issue; breaks a platform invariant (multi-tenant: tenant_id on every query/cache key + ACL-cohort hash, cross-tenant joins; citations-mandatory: filter refuse_if no_citations; temperature==0 on synthesize/cite/filter; ACL server-side in retrieve_kb with caller identity inherited never trusted from model; append-only BotVersion/KBVersion; MCP internal tool boundary; no LangChain/LangGraph; OpenAPI is the API contract, portal types generated); the implementation contradicts the merged spec; or a test does not actually assert the spec scenario.`,
@@ -663,7 +649,7 @@ phase('Evidence')
 const evidence = await agent(
   [
     `Write the evidence bundle for change "${change}" into "${pre.changeRoot}/evidence/" (create dir). Use Bash/Write. It moves to the archive with the change and is linked from the PR.`,
-    `- gates.md — a table \`toolchain | unitDir | gate | command | result\` of the gates that ran (${gatesRun.join('; ')}), incl. the free bench ladder and \`openspec validate\`, plus the llmGates tier status; the per-unit commits (${commits.map((c) => c.pair + ':' + c.sha).join(', ')}), repair count (${repairs}), and the governing skills (${allSkills.join(', ')}).`,
+    `- gates.md — a table \`toolchain | unitDir | gate | command | result\` of the gates that ran (${gatesRun.join('; ')}), incl. the free bench ladder and \`openspec validate\`, plus the llmGates tier status; the per-unit commits (${commits.map((c) => c.pair + ':' + c.sha).join(', ')}), repair count (${repairs}), and the governing skills (${(await getPromptHooks('on-ship-end', { change }).then(h => h.join(', ')))}).`,
     `- test-results.md — concatenate the per-toolchain test tails: \`uv --directory <member> run python -m pytest -q 2>&1 | tail -40\` per touched Python member, \`(cd <module> && go test -race ./...) 2>&1 | tail -40\` per Go module, \`(cd apps/portal && pnpm test) 2>&1 | tail -40\` if the portal was touched (note DB-dependent pytest skips without TEST_DATABASE_URL; e2e skips without browsers — skips are not failures).`,
     `- coverage.txt — one block per toolchain (py: pytest --cov term-missing summary; go: \`go tool cover -func\` tail; ts: vitest coverage summary), else "coverage not captured".`,
     `Concise + factual. Do NOT commit (a later step commits evidence). Return the dir + file list.`,
@@ -720,7 +706,7 @@ if (local) {
   }
   mergeResult = await agent(
     [
-      `Local-merge branch "${branch}" into "${base}" for change "${change}". Use Bash ONLY (no gh, no remote). ${skillNote('LocalMerge')}`,
+      `Local-merge branch "${branch}" into "${base}" for change "${change}". Use Bash ONLY (no gh, no remote). ${await getPromptHooks('on-local-merge', { change }).then(h => h.join(' '))}`,
       `Strategy = "${mergeStrategy}".`,
       `1. git rev-parse --abbrev-ref HEAD — MUST equal "${branch}". Else merged=false, reason="not on ${branch}", STOP.`,
       `2. git rev-parse "${base}" — capture baseSha (the tip of base before merge).`,
@@ -789,7 +775,7 @@ if (local) {
   if (archive) {
     archived = await agent(
       [
-        `Archive OpenSpec change "${change}". ${skillNote('Archive')}`,
+        `Archive OpenSpec change "${change}". ${await getPromptHooks('on-archive', { change }).then(h => h.join(' '))}`,
         `1. openspec list --json — confirm "${change}" is ACTIVE. If not active (already archived?), set archived=false, reason="already archived or not in active list — re-run is a no-op", STOP.`,
         `2. If the directory "${archiveTarget}" already exists, set archived=false, reason="target exists: ${archiveTarget}", STOP.`,
         `3. mkdir -p openspec/changes/archive && mv "openspec/changes/${change}" "${archiveTarget}".`,
@@ -823,7 +809,7 @@ if (local) {
   if (bump) {
     tagged = await agent(
       [
-        `Tag ${base} at HEAD with version vX.Y.Z derived from bump="${bump}". Use Bash. ${skillNote('Archive')}`,
+        `Tag ${base} at HEAD with version vX.Y.Z derived from bump="${bump}". Use Bash. ${await getPromptHooks('on-archive', { change }).then(h => h.join(' '))}`,
         `1. If bump is null/empty → noop. tagged=false, tag=null.`,
         `2. Read the current latest tag: git describe --tags --abbrev=0  (returns empty + exit 128 if no tags). Capture priorTag.`,
         `3. Parse priorTag as MAJOR.MINOR.PATCH (default to 0.0.0 if no priorTag). Bump per bump:`,
@@ -854,7 +840,7 @@ if (local) {
       const evDir = archived.archived ? `${archived.archivePath}/evidence` : `${pre.changeRoot}/evidence`
       const pr = await agent(
         [
-          `Open a PR for change "${change}" (title: "${title}"). The feature branch "${branch}" holds the change's per-unit commits and has been merged into LOCAL "${base}" (origin/${base} is NOT updated, so a PR ${branch} → ${base} shows the full change diff). Use Bash (git + gh). ${skillNote('PR')}`,
+          `Open a PR for change "${change}" (title: "${title}"). The feature branch "${branch}" holds the change's per-unit commits and has been merged into LOCAL "${base}" (origin/${base} is NOT updated, so a PR ${branch} → ${base} shows the full change diff). Use Bash (git + gh). ${await getPromptHooks('on-pr', { change }).then(h => h.join(' '))}`,
           `0. TARGET THE ORIGIN REPO, NOT AN UPSTREAM PARENT. This repo may be a fork — gh defaults PRs to the parent. Compute the origin slug: REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner) (or parse "git remote get-url origin"). Pass --repo "$REPO" to every gh pr command so the PR is opened on origin (e.g. minhlucncc/mework), never the upstream.`,
           `1. Push the branch: git push -u origin "${branch}". If origin is missing or the push fails, set prCreated=false, prReason=<error>, prUrl=null and STOP (NON-FATAL — the local merge already happened; just report it).`,
           `2. Reuse-or-create: gh pr view "${branch}" --repo "$REPO" --json url,state 2>/dev/null. If an OPEN PR already exists, reuse its url (prCreated=false, prReason="exists"). Otherwise create one:`,
@@ -882,7 +868,7 @@ if (local) {
   const evidenceDirArchived = archived.archived ? `${archived.archivePath}/evidence` : `${pre.changeRoot}/evidence`
   const fin = await agent(
     [
-      `Finalize the LOCAL ship of change "${change}" on ${base}. Use Bash (git ONLY — NO gh). ${skillNote('Archive')}`,
+      `Finalize the LOCAL ship of change "${change}" on ${base}. Use Bash (git ONLY — NO gh). ${await getPromptHooks('on-archive', { change }).then(h => h.join(' '))}`,
       `Context:`,
       `- branch: ${branch} (still present, to be deleted)`,
       `- base: ${base}`,
@@ -923,7 +909,7 @@ if (local) {
       `   | Archived | ${archived.archivePath || '(no-archive)'} |`,
       `   | Tag | ${tagged.tag || 'n/a'} |`,
       `   | Chore commit | <shortSha from step 3> |`,
-      `   | Skills applied | ${allSkills.join(', ')} |`,
+      `   | Skills applied | ${(await getPromptHooks('on-ship-end', { change }).then(h => h.join(', ')))} |`,
       `   | Local review | ${review ? review.verdict : 'skipped'} (${review ? review.findings.length : 0} findings) |`,
       `   | Branch | ${branch} ${keepBranch ? 'kept' : 'deleted'} |`,
       `   Stage post-merge.md with the same chore commit (or amend it): git add ${evidenceDirArchived}/post-merge.md && git commit --amend --no-edit.`,
@@ -957,7 +943,7 @@ if (local) {
     prReason: prResult.prReason || '',
     evidenceDir: evidenceDirArchived,
     postMergeEvidence: `${evidenceDirArchived}/post-merge.md`,
-    skillsApplied: allSkills,
+    skillsApplied: [],
     notes: fin ? fin.notes : 'cleanup agent returned null',
     nextStep: prResult.prUrl
       ? `Merged into ${base} locally and opened PR ${prResult.prUrl} for review. ${base} advanced by ${commits.length + 2} commit(s); ${change} archived to ${archived.archivePath || '(no-archive)'}. The PR shows the change diff; merging/pushing ${base} later closes it.`
@@ -974,7 +960,7 @@ if (budget && budget.total && budget.remaining() < reserve) {
 }
 const fin = await agent(
   [
-    `Finalize change "${change}" (title: "${title}") on branch "${branch}". Use Bash (git + gh). ${skillNote('PR')}`,
+    `Finalize change "${change}" (title: "${title}") on branch "${branch}". Use Bash (git + gh). ${await getPromptHooks('on-pr', { change }).then(h => h.join(' '))}`,
     `1. CHANGELOG.md: prepend bullet(s) under "## [Unreleased]" (create the file with the Keep a Changelog header if absent), grouped Added/Changed/Removed per the delta sections, each ending " (${change})". Date context: ${DATE}.`,
     `2. Commit the evidence + changelog as ONE chore commit. The canonical specs are NOT staged here — they were merged on ${base} by the spec PR (/opsx:spec-pr) and the reconcile left them unchanged. Stage ONLY the intended paths (do NOT use git add -A):`,
     `   git add "${evidenceDir}" CHANGELOG.md && git commit -m "chore(${change}): evidence, changelog" -m "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"`,
@@ -982,7 +968,7 @@ const fin = await agent(
     dryRun
       ? `3. DRY RUN: stop after the chore commit — do NOT run git push and do NOT run gh. Set pushed=false, prUrl=null, prExisted=false, note it was a dry run.`
       : `3. Push: git push -u origin "${branch}".`,
-    dryRun ? `` : `4. Existing PR? gh pr view "${branch}" --json url,state 2>/dev/null. If OPEN, the push updated it (prExisted=true, use its url). Else gh pr create --base "${base}" --head "${branch}" --title "feat: ${title}" --body <body> with: the proposal's what-and-why; a "## Spec contract" line noting the spec was reviewed & merged via its spec PR (find it: gh pr list --search "spec(${change})" --state merged --json url,title) and that this code PR implements that locked contract; a "## Agent review" section = the code+security pre-review verdict (${review ? review.verdict : 'n/a'}) and its findings (${review && review.findings ? review.findings.length : 0}) by severity (blockers/required first) for the human approver; a "## Evidence" section linking ${evidenceDir} + the gates (${gatesRun.join(', ')}) + coverage (${coverage || 'n/a'}); the per-task commits (${commits.map((c) => 'task ' + c.pair).join(', ')}); the CHANGELOG bullet(s); "Skills applied: ${allSkills.join(', ')}"; and a final "🤖 Generated with [Claude Code](https://claude.com/claude-code)". Capture prUrl.`,
+    dryRun ? `` : `4. Existing PR? gh pr view "${branch}" --json url,state 2>/dev/null. If OPEN, the push updated it (prExisted=true, use its url). Else gh pr create --base "${base}" --head "${branch}" --title "feat: ${title}" --body <body> with: the proposal's what-and-why; a "## Spec contract" line noting the spec was reviewed & merged via its spec PR (find it: gh pr list --search "spec(${change})" --state merged --json url,title) and that this code PR implements that locked contract; a "## Agent review" section = the code+security pre-review verdict (${review ? review.verdict : 'n/a'}) and its findings (${review && review.findings ? review.findings.length : 0}) by severity (blockers/required first) for the human approver; a "## Evidence" section linking ${evidenceDir} + the gates (${gatesRun.join(', ')}) + coverage (${coverage || 'n/a'}); the per-task commits (${commits.map((c) => 'task ' + c.pair).join(', ')}); the CHANGELOG bullet(s); "Skills applied: ${(await getPromptHooks('on-ship-end', { change }).then(h => h.join(', ')))}"; and a final "🤖 Generated with [Claude Code](https://claude.com/claude-code)". Capture prUrl.`,
     dryRun ? `` : `5. LIFECYCLE (best-effort — NEVER fail the PR on this): extract the code PR number from prUrl and the merged spec PR number from the "spec(${change})" lookup above, then run \`node .claude/workflows/lib/lifecycle.js after-code-pr-opened --change "${change}" --branch "${branch}" --code-pr "<prUrl>" --code-pr-number "<codePrNumber>" --spec-pr-number "<specPrNumber>"\` (optionally pipe the CHANGELOG bullet: \`printf '%s' "<bullet>" | node .claude/workflows/lib/lifecycle.js after-code-pr-opened … --changelog-ref\`). It comments the linked ticket, assigns it to @me when unassigned, sets it in-review, and records the code PR ref. No-ops when unlinked; on any error, log and CONTINUE.`,
     `Return the structured result. If push/gh fails, set pushed=false/prUrl=null and explain in notes — commits stand on the local branch.`,
   ].filter(Boolean).join('\n'),
@@ -999,7 +985,7 @@ if (!dryRun && fin && fin.prUrl) {
 return {
   stage: 'done', ok: true, mode: 'remote', change, title, branch, dryRun,
   commits, // per-task red+green commits
-  repairs, gatesRun, coverage, evidenceDir, skillsApplied: allSkills,
+  repairs, gatesRun, coverage, evidenceDir, skillsApplied: [],
   specsSynced: synced.synced,
   changelogWritten: !!(fin && fin.changelogWritten),
   choreCommitted: !!(fin && fin.choreCommitted),

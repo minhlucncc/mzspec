@@ -17,12 +17,12 @@ same `openspec/` tree — mzspec never creates a parallel store.
             │    changes/archive/                                                   │
             │  .handoff/<c>/                      ← mzspec ship-plan handoff        │
             │  mzspec.config.json                 ← mzspec config (toolchains/gates)│
-            │  .claude/workflows, commands, skills← mzspec, vendored by install.sh  │
+            │  .claude/workflows, commands, skills (core) + extensions/<name>/ (optional)← mzspec, vendored by install.sh  │
             └──────────────────────────────────────────────────────────────────────┘
 ```
 
 - **OpenSpec provides:** the `openspec` CLI, `openspec init`/`validate`, and the base
-  `/opsx:propose`, `/opsx:apply`, `/opsx:sync`, `/opsx:archive` commands.
+  `/opsx:propose`, `/opsx:sync`, `/opsx:archive` commands.
 - **mzspec adds:** `/opsx:spec`, `/opsx:spec-pr`, `/opsx:ship-plan`, `/opsx:ship-code`,
   `/opsx:ship`, `/opsx:ship-pr`, `/opsx:address-review`, `/opsx:author-review`, `/opsx:merge-pr`,
   plus the gate engine.
@@ -79,5 +79,5 @@ The ship-code Verify phase runs every emitted command; each must exit 0. See
 
 mzspec is generic. Your toolchain inventory is auto-discovered from your manifests; your concrete
 gate overrides (`openspec/hooks/resolve-gates`), any explicit config, and your hard-invariants
-live in *your* repo, not in mzspec. The `examples/meknow/` config shows a
+live in *your* repo, not in mzspec. The `core/gates/starters/ (or see docs/gate-plugin.md)` config shows a
 complete real-world setup.

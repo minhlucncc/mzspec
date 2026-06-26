@@ -4,6 +4,37 @@ All notable changes to mzspec are recorded here. The installed release is stampe
 into each project at `.claude/.mzspec-version`; `update.sh` runs the migrations
 between a project's stamped version and the current `VERSION`.
 
+## 0.7.0 — extension management + dynamic skill hooks
+
+**Extensions are now self-contained** with their own `install.sh`/`uninstall.sh`,
+managed via the new `scripts/mzspec` CLI. Core no longer hardcodes skill names —
+skills are injected dynamically via prompt hooks at each pipeline phase.
+
+Added:
+- `scripts/mzspec` — extension manager CLI: `install`, `uninstall`, `list`, `info`
+- `extensions/agent-skills/install.sh` + `uninstall.sh`
+- `extensions/tasks/install.sh` + `uninstall.sh`
+- `core/workflows/lib/hook-engine.js` — shared hook driver (replaces duplicated inline code)
+- `extensions/agent-skills/hooks/on-*.prompt.md` — 9 prompt hooks injecting skill guidance per phase
+
+Changed:
+- `core/skills/` — 4 pipeline-essential skills; 8 general skills to `extensions/agent-skills/skills/`
+- `core/gates/` — gate contract moved from `extensions/gates/`
+- Skill references removed from `ship-code.js`, `address-review.js`, `ship-plan.js` — dynamic via `getPromptHooks()`
+- `install.sh` — simplified to core only
+- `extensions/gates/` → `core/gates/`
+- `extensions/templates/` → `core/templates/` (then removed, starters to `extensions/agent-skills/templates/`)
+- `extensions/hooks/` removed entirely
+- Scripts moved to `scripts/` (`install.sh`, `update.sh`, `migrate.sh`, `mzspec`)
+
+Removed:
+- `/opsx:apply` references everywhere
+- `mzspec.config.schema.json` — zero-config, not needed
+- Hardcoded `SKILLS` map in `ship-code.js` — replaced by prompt hooks
+- `extensions/task-sources/` — contract moved to `extensions/tasks/task-sources/`
+
+## 0.6.0 — (previous release)
+
 ## 0.2.0 — zero-config gate resolution + `openspec/hooks/`
 
 **Retires the centralized `mzspec.config.json`.** Gate resolution is now a 3-step

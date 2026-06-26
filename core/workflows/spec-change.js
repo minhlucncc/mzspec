@@ -258,6 +258,6 @@ return {
   reviewReport: rep ? rep.path : `${pre.changeRoot}/review/REVIEW.md`,
   nextStep:
     verdict === 'approve'
-      ? `Spec "${change}" is clean (no Blocker/Required). Review ${rep ? rep.path : 'review/REVIEW.md'}, then run /opsx:ship ${change} (or /opsx:apply).`
+      ? `Spec "${change}" is clean (no Blocker/Required). Review ${rep ? rep.path : 'review/REVIEW.md'}, then run /opsx:ship ${change}.`
       : `Spec "${change}" still has ${openCount} Blocker/Required finding(s)${dryRun ? ' (dryRun — none auto-fixed)' : ` after ${revisions} revision(s)`}. See ${rep ? rep.path : 'review/REVIEW.md'} and fix them (or re-run with a higher maxRevisions).`,
 }

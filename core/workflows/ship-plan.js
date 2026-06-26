@@ -114,7 +114,7 @@ const HANDOFF_FORMAT = [
   `the rest. Keep plan.json units[*] and the tasks/*.md frontmatter in sync.`,
 ].join('\n')
 
-const SKILL = (name) => `the \`${name}\` skill (.claude/skills/${name}/SKILL.md)`
+// Skills are injected dynamically via prompt hooks — extensions/agent-skills/Hooks/on-plan.prompt.md
 
 // ---------------------------------------------------------------- Phase 1: Preflight
 phase('Preflight')
@@ -150,7 +150,7 @@ const CONTEXT = [
 
 const plan = await agent(
   [
-    `Write the execution handoff for OpenSpec change "${change}" into "${handoffDir}/". Apply ${SKILL('planning-and-task-breakdown')} and ${SKILL('test-driven-development')} (each unit's tests are its Red plan).`,
+    `Write the execution handoff for OpenSpec change "${change}" into "${handoffDir}/". Apply ${await getPromptHooks('on-plan', { change }).then(h => h.join(' '))} (each unit's tests are its Red plan).`,
     CONTEXT,
     `GROUP these OPEN tasks.md items into a FEW test-first units (aim 1-4; collapse a small change to ONE unit). Open tasks: ${openTasks.map((t) => t.n + '. ' + t.text).join(' | ')}.`,
     `- Cluster the tasks by natural seam (package / capability / spec requirement) AND by toolchain (don't mix py/go/ts in one unit). Each cluster becomes ONE unit covering several tasks.md ordinals (coversTasks); set its "toolchain".`,

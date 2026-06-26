@@ -1,7 +1,7 @@
 # Gate plugins
 
 mzspec ships the gate **resolver** and **runner convention**; your project owns the gate
-**scripts**. This is how you plug your own checks into the ship pipeline without touching mzspec.
+**scripts**. Gates are zero-config — auto-discovered from your repo's own manifests.
 
 ## The contract (summary)
 
@@ -13,8 +13,7 @@ A gate is any executable that:
 - writes diagnostics to **stderr**, a terse `ok:`/`fail:` line to stdout,
 - is **deterministic and side-effect-free**.
 
-Full text: [`extensions/gates/CONTRACT.md`](../extensions/gates/CONTRACT.md) (installed to
-`.claude/mzspec-gates/CONTRACT.md`).
+Full text: [`core/gates/CONTRACT.md`](../core/gates/CONTRACT.md).
 
 ## Registering a gate
 
@@ -55,6 +54,5 @@ each must exit 0 (with a bounded repair loop on failure).
 
 ## Starter gates
 
-`.claude/mzspec-gates/starters/` has generic, project-agnostic examples
-(`openspec-validate.sh`, `toolchain-passthrough.sh`). Your real gates live in your repo, not in
-mzspec.
+Example gate scripts live in [`core/gates/starters/`](../core/gates/starters/) — reference
+copies to adapt. Your real gates live in your repo, not in mzspec.

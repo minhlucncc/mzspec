@@ -80,3 +80,13 @@ or (future) an `openspec/hooks/task-source` hook.
 The same pattern extends to other workflow decisions (e.g. `pre-verify`,
 `post-archive`). Each looks for `openspec/hooks/<name>`, runs it if present, and
 falls back to a built-in default otherwise — so a repo customizes only what it needs.
+
+## Prompt hooks (`on-<event>.prompt.md`)
+
+Prompt hooks inject text into the running agent's context at specific pipeline phases.
+They live in `extensions/<name>/hooks/` and are scanned by the hook engine at runtime.
+For example, `extensions/agent-skills/hooks/on-test.prompt.md` injects TDD skill guidance
+during the Red phase of ship-code.
+
+Agent hooks (`on-<event>.agent.md`) spawn a dedicated agent with natural-language instructions.
+Both types are auto-discovered from each extension's `hooks/` directory.
