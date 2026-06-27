@@ -17,16 +17,22 @@ review, evidence, reconcile, and open the code PR).
 > asserts the contract is present and its Sync phase only **reconciles** (a contract that
 > drifts during implementation stops the ship and goes back to `/opsx:spec` + `/opsx:spec-pr`).
 
-**Two paths** are offered at the top:
+**Four paths** are offered at the top:
 
 - **Remote PR (gh pr create)** — **recommended / default**. Branches `feat/<change>` from the
   freshened base (`<base>`, default `main`) → per-unit commits → verify → agent code+security review (posted on the PR)
   → evidence → reconcile → push + open the code PR with the review findings and a link to the
   merged spec PR. **Ends at PR opened; a human reviews & merges**, then `/opsx:address-review`
   handles feedback and `/opsx:archive` finalizes.
+- **Remote PR in worktree (`--worktree`)** — same as remote PR, but implementation runs in an
+  isolated git worktree. Stops after implementation (no push, no PR) — you verify locally first,
+  then push + create the PR via `/opsx:ship-pr`.
 - **Local merge (`--local`, no gh)** — escape hatch for trivial/solo changes. Bundles the spec
   sync, squash-merges into the base branch locally, archives, optional tag. Gates the merge on the agent
   review. Use only when a PR gate is genuinely unnecessary.
+- **Local merge in worktree (`--local-worktree`)** — same as local merge, but implementation
+  runs in an isolated git worktree so the main checkout stays on the base branch. After the
+  worktree agent returns, merge/archive/cleanup runs in the main checkout automatically.
 
 **Input**: Optionally a change name (e.g., `/opsx:ship c0006-…`). `--base <branch>`
 sets the branch the change is built on and the PR targets (default `main`); when
@@ -37,6 +43,8 @@ commits are still produced).
 `--worktree` runs the implementation phases inside an isolated git worktree so the
 main checkout stays on the base branch, and **stops after implementation** (no push, no PR)
 so you can verify locally before creating the PR. Only valid for the remote PR path.
+`--local-worktree` is the same but for the local merge path — implementation in a worktree,
+then automated merge/archive/cleanup in the main checkout.
 
 **Steps**
 
@@ -46,8 +54,10 @@ so you can verify locally before creating the PR. Only valid for the remote PR p
      runs in an isolated git worktree. Stops after implementation (no push, no PR)
      — you verify locally first, then push + create the PR.
    - "Local merge (`--local`, no gh)" — escape hatch for trivial/solo changes
+   - "Local merge in worktree (`--local-worktree`)" — local merge with worktree isolation.
+     Implementation runs in a worktree, then merge/archive/cleanup in the main checkout.
 
-   **On Local**, AskUserQuestion follow-ups:
+   **On Local** (both plain and worktree), AskUserQuestion follow-ups:
    - Merge strategy: `squash` (default) / `--no-ff` / `ff-only`
    - Bump: none (default) / patch / minor / major
    - `noPushMain`: stay fully local (default) / also push `main` to origin
@@ -84,8 +94,8 @@ so you can verify locally before creating the PR. Only valid for the remote PR p
 
 4. **Execute.** Launch
    `Workflow({ name: 'ship-code', args: { change, date, dryRun,
-     local: <true|false>, worktree: <true|false>, base: <base>,
-     mergeStrategy, bump, noPushMain, archive, skipReview } })`.
+     local: <true|false>, worktree: <true|false>, localWorktree: <true|false>,
+     base: <base>, mergeStrategy, bump, noPushMain, archive, skipReview } })`.
 
    **Remote path** Base sync (fetch + ff-merge `<base>`) → branches from the freshened
    `<base>` → runs each unit Red→Green→one commit →
@@ -110,6 +120,12 @@ so you can verify locally before creating the PR. Only valid for the remote PR p
    `git branch -D feat/<change>` → optional `git push origin <base>` (when
    `--push-main`).
 
+   **Local-worktree path** Preflight runs in the main checkout. Implementation
+   (branch → implement → verify → review → evidence → sync → changelog → chore commit)
+   runs inside an isolated `git worktree`. After the worktree agent returns,
+   **merge/archive/cleanup runs in the main checkout** (same as the local path above).
+   Main checkout stays on `<base>` throughout; the worktree is cleaned up automatically.
+
 5. **Relay the result.**
 
    **Remote**: branch, per-task commits, gates + coverage, agent review verdict + findings,
@@ -120,7 +136,7 @@ so you can verify locally before creating the PR. Only valid for the remote PR p
    and instructions to verify locally then push + create the PR. The main checkout was
    never switched away from `<base>`. The worktree was cleaned up.
 
-   **Local**: mergeSha + baseSha, pre-merge gates + coverage, review verdict +
+   **Local** (both plain and worktree): mergeSha + baseSha, pre-merge gates + coverage, review verdict +
    findings, post-merge gates + coverage, sync state, archive path, tag (if
    any), choreSha, pushed status, evidence dir (and the new
    `evidence/post-merge.md` inside it).
@@ -132,5 +148,6 @@ so you can verify locally before creating the PR. Only valid for the remote PR p
 - The local path **never** calls `gh`. The remote path **always** ends at PR
   opened — never merges.
 - Pass `dryRun` whenever testing the pipeline.
-- `--worktree` requires the remote path; incompatible with `--local`.
+- `--worktree` requires the remote path; incompatible with `--local`. Use `--local-worktree`
+  instead if you want both worktree isolation AND local merge.
 - The worktree is cleaned up automatically after the agent returns (success or failure).

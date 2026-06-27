@@ -4,6 +4,29 @@ All notable changes to mzspec are recorded here. The installed release is stampe
 into each project at `.claude/.mzspec-version`; `update.sh` runs the migrations
 between a project's stamped version and the current `VERSION`.
 
+## 0.8.0 — local worktree ship path + worktree spec-pr
+
+**Added `--local-worktree` ship path and `--worktree` support for spec-pr.** The
+local merge path can now run implementation inside an isolated git worktree, then
+automatically merge/archive/cleanup in the main checkout. The spec-pr workflow can
+also run sync + commit in a worktree, with push + PR from the main checkout.
+
+Added:
+- `--local-worktree` alias for `ship-code.js` — combines worktree isolation with
+  local merge/archive (best of both worlds)
+- `--worktree` flag for `spec-pr.js` — sync + commit in isolated worktree, push + PR
+  from main checkout
+- 4th path "Local merge in worktree" in `/opsx:ship` path selection
+
+Changed:
+- `ship-code.js`: removed `--worktree`+`--local` incompatibility. When both are set,
+  implementation runs in the worktree then merge/archive/cleanup in the main checkout
+- `ship-code.js`: extracted shared variables (`repairs`, `gatesRun`, `coverage`, etc.)
+  before the worktree/implement conditional so both paths can use them
+- `ship.md`: path selection now offers "Local merge in worktree" as a 4th option
+- `spec-pr.md`: step to ask user about main checkout vs worktree
+- `ship-code.md`: documents `--local-worktree` and worktree step for local path
+
 ## 0.7.0 — extension management + dynamic skill hooks
 
 **Extensions are now self-contained** with their own `install.sh`/`uninstall.sh`,
