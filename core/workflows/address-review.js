@@ -24,6 +24,25 @@ if (!/^[a-z][a-z0-9-]*$/.test(change)) throw new Error('Unsafe change name (must
 
 const branch = `feat/${change}`
 // Skills are injected dynamically via prompt hooks — extensions/agent-skills/Hooks/on-address-review.prompt.md
+async function getPromptHooks(event, context = {}) {
+  const change = context.change || ''
+  return agent([
+    `Event: ${event}`,
+    `Change: ${change}`,
+    `Read openspec/hooks/on-${event}.prompt.md and each extensions/*/Hooks/on-${event}.prompt.md.`,
+    'For each file found: return its contents as a string in the array.',
+    'If no files found: return an empty array.',
+  ].join('\n'), {
+    schema: {
+      type: 'object', additionalProperties: false, required: ['prompts'],
+      properties: {
+        prompts: { type: 'array', items: { type: 'string' }, description: 'Prompt text fragments from hook files' },
+      },
+    },
+    label: `prompt-hooks:${event}`,
+    phase: 'Hooks',
+  }).then(r => (r && r.prompts) || [])
+}
 
 // ---------------------------------------------------------------- Phase 1: Preflight — find the PR + unresolved threads
 phase('Preflight')
