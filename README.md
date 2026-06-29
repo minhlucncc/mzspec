@@ -115,7 +115,7 @@ curl -fsSL https://raw.githubusercontent.com/minhlucncc/mzspec/main/scripts/inst
 
 # 2. Add the extensions you want
 ./mzspec install agent-skills
-./mzspec install tasks
+./mzspec install task-github
 
 # 3. See what's available / installed
 ./mzspec list
