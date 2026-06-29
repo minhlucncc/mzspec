@@ -83,6 +83,7 @@ Commands:
   discover   Auto-discover toolchains from project manifests
   template   Manage planning templates (list, show, path, create, remove)
   hooks list List hooks in openspec/hooks/
+  docs       Show the SDD workflow overview (pipeline + extensions + hooks)
   version    Show mzspec version
   help       Show this help
 
@@ -286,6 +287,172 @@ node_dispatch() {
   exec node "$script" "$@"
 }
 
+# ---- docs: workflow overview -------------------------------------------------
+docs_cmd() {
+  local ver="$(version)"
+  local has_color=1
+  case "${TERM:-}" in dumb|"") has_color=0;; esac
+  local B=""; local R=""; local NC=""
+  if [ "$has_color" -eq 1 ]; then B='\033[1;34m'; R='\033[1;35m'; NC='\033[0m'; fi
+
+  # Detect extensions
+  local ext_agent=0 ext_github=0
+  if [ -n "$EXTENSIONS_DIR" ]; then
+    [ -d "$EXTENSIONS_DIR/agent-skills" ] && ext_agent=1
+    [ -d "$EXTENSIONS_DIR/task-github" ] && ext_github=1
+  fi
+  [ -f "$LIBS_DIR/github.js" ] && ext_github=1
+
+  # Detect hooks
+  local hooks_root=""
+  if [ -n "$MZSPEC_DIR" ] && [ -d "$MZSPEC_DIR/openspec/hooks" ]; then
+    hooks_root="$MZSPEC_DIR/openspec/hooks"
+  elif [ -d "openspec/hooks" ]; then
+    hooks_root="$(cd openspec/hooks && pwd 2>/dev/null || echo "")"
+  fi
+
+  local agent_hooks=() prompt_hooks=() ext_prompt_hooks=()
+  if [ -n "$hooks_root" ]; then
+    while IFS= read -r f; do
+      local name="${f##*/}"
+      case "$name" in *.agent.md) agent_hooks+=("$name");; *.prompt.md) prompt_hooks+=("$name");; esac
+    done < <(find "$hooks_root" -maxdepth 1 -type f \( -name '*.agent.md' -o -name '*.prompt.md' \) 2>/dev/null | sort)
+  fi
+  if [ -n "$EXTENSIONS_DIR" ]; then
+    while IFS= read -r f; do
+      ext_prompt_hooks+=("${f#$EXTENSIONS_DIR/}")
+    done < <(find "$EXTENSIONS_DIR" -path '*/hooks/on-*.prompt.md' -type f 2>/dev/null | sort)
+  fi
+
+  local ext_count=$((ext_agent + ext_github))
+  local hook_count=$(( ${#agent_hooks[@]} + ${#prompt_hooks[@]} + ${#ext_prompt_hooks[@]} ))
+
+  # Header
+  echo ""
+  printf "${R}╔══════════════════════════════════════════════════════════════╗${NC}\n"
+  printf "${R}║            ${B}mzspec — SDD Workflow Overview${R}                ║${NC}\n"
+  printf "${R}╚══════════════════════════════════════════════════════════════╝${NC}\n"
+  echo ""
+  printf "  Version: ${B}%s${NC}  |  Extensions: %d  |  Hooks: %d  |  Lifecycle events: 7\n" "$ver" "$ext_count" "$hook_count"
+  echo ""
+
+  # ─── CORE PIPELINE ──────────────────────────────────────────────────
+  printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+  printf "${B}  CORE PIPELINE${NC}\n"
+  printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+  echo ""
+  echo "  ┌─────────┐   ┌──────┐   ┌─────────┐   ┌───────────┐   ┌──────────┐   ┌───────────┐"
+  echo "  │ PROPOSE │──→│ SPEC │──→│ SPEC-PR │──→│ ⚠️  MERGE │──→│SHIP-PLAN │──→│ SHIP-CODE │"
+  echo "  └─────────┘   └──────┘   └─────────┘   │ (HUMAN)  │   └──────────┘   └───────────┘"
+  echo "                                          └──────────┘         │              │"
+  echo "                                                                           ▼"
+  echo "                                                       ┌───────────┐   ┌───────────┐"
+  echo "                                                       │ SHIP-CODE │──→│ ⚠️  MERGE │──→ 🎉"
+  echo "                                                       │ (cont.)   │   │ (HUMAN)   │"
+  echo "                                                       └───────────┘   └───────────┘"
+  echo ""
+
+  # ─── COMMANDS ───────────────────────────────────────────────────────
+  printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+  printf "${B}  COMMANDS${NC}\n"
+  printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+  echo ""
+  echo "  propose        Scaffold a change from a prompt → cNNNN-<slug>/ with proposal,"
+  echo "                 design.md, tasks.md, delta specs"
+  echo "  spec           Cross-validate spec across 6 axes → review/REVIEW.md"
+  echo "  spec-pr        Sync delta→canonical specs, open spec-only PR → [HUMAN MERGES]"
+  echo "  ship-plan      Group tasks into 1-4 TDD work-units → .handoff/<change>/"
+  echo "  ship-code      Execute units: Red→Green→commit → Verify → Review → Evidence → PR"
+  echo "                   ├─ Base sync     Fetch + ff-merge base branch"
+  echo "                   ├─ Preflight     Tools check, validate, branch, load handoff"
+  echo "                   ├─ Implement     Per unit: Red (failing test) → Green (code) → commit"
+  echo "                   ├─ Verify        Per-toolchain gates + openspec validate + repair loop"
+  echo "                   ├─ Review        Code review + security audit"
+  echo "                   ├─ Evidence      Write gates.md, test-results.md, coverage.txt"
+  echo "                   ├─ Sync          Reconcile delta vs canonical specs"
+  echo "                   ├─ Changelog     Prepend Keep a Changelog entry"
+  echo "                   └─ Finalize      Push + gh pr create"
+  echo "  ship            ship-plan + ship-code in one command"
+  echo "  address-review  Fix PR feedback → re-verify gates → push → reply → human re-reviews"
+  echo "  merge-pr        Auto-dispatch: spec/ branch → merge-pr-spec, feat/ → merge-pr-code"
+  echo "  author-review   Automated multi-dimension code review (for team leads)"
+  echo ""
+
+  # ─── EXTENSIONS ─────────────────────────────────────────────────────
+  printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+  printf "${B}  EXTENSIONS${NC}\n"
+  printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+  echo ""
+  if [ "$ext_count" -eq 0 ]; then
+    echo "  (no extensions installed)"
+    echo "  Install with: ./mzspec ext add <name>"
+    echo "  Available: agent-skills (skill library + hooks), task-github (GitHub integration)"
+    echo ""
+  fi
+  if [ "$ext_agent" -eq 1 ]; then
+    echo "  agent-skills     Skill library + 9 prompt hooks at each pipeline phase"
+    echo "    hooks: on-plan, on-test, on-implement, on-review, on-verify,"
+    echo "           on-pr, on-address-review, on-archive, on-local-merge"
+    echo ""
+  fi
+  if [ "$ext_github" -eq 1 ]; then
+    echo "  task-github      GitHub Issues & Projects integration"
+    echo "    lifecycle:     7 events sync issue status + board through the pipeline"
+    echo "    commands:      propose-gh <issue>, task-log, task-assign"
+    echo ""
+  fi
+
+  # ─── HOOKS ──────────────────────────────────────────────────────────
+  printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+  printf "${B}  HOOKS (registered)${NC}\n"
+  printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+  echo ""
+  if [ "${#agent_hooks[@]}" -eq 0 ] && [ "${#prompt_hooks[@]}" -eq 0 ] && [ "${#ext_prompt_hooks[@]}" -eq 0 ]; then
+    echo "  (no hooks registered)"
+  fi
+  if [ "${#agent_hooks[@]}" -gt 0 ]; then
+    echo "  Agent hooks (openspec/hooks/on-<event>.agent.md):"
+    for h in "${agent_hooks[@]}"; do
+      printf "    • %s\n" "${h%.agent.md}"
+    done
+    echo ""
+  else
+    echo "  Agent hooks: (none — create files in openspec/hooks/ to register)"
+    echo ""
+  fi
+  if [ "${#prompt_hooks[@]}" -gt 0 ]; then
+    echo "  Prompt hooks (openspec/hooks/on-<event>.prompt.md):"
+    for h in "${prompt_hooks[@]}"; do
+      printf "    • %s\n" "${h%.prompt.md}"
+    done
+    echo ""
+  fi
+  if [ "${#ext_prompt_hooks[@]}" -gt 0 ]; then
+    echo "  Extension prompt hooks:"
+    for h in "${ext_prompt_hooks[@]}"; do
+      local ev="${h##*/hooks/on-}"; ev="${ev%.prompt.md}"
+      printf "    • %s\n" "$ev"
+    done
+    echo ""
+  fi
+
+  # ─── LIFECYCLE ──────────────────────────────────────────────────────
+  if [ "$ext_github" -eq 1 ] || [ -f "$LIBS_DIR/lifecycle.js" ]; then
+    printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+    printf "${B}  LIFECYCLE (GitHub issue sync — task-github)${NC}\n"
+    printf "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+    echo ""
+    echo "  before-spec            🟢 Comment \"Spec started\" on linked issue"
+    echo "  after-spec-pr-opened   📋 Status → in-review, record PR ref, assign @me"
+    echo "  after-spec-pr-merged   ✅ Record merge SHA"
+    echo "  before-ship            🚀 Comment \"Implementation starting\""
+    echo "  after-code-pr-opened   🔧 Status → in-review, assign @me, record PR + changelog"
+    echo "  after-review-addressed 💬 Comment \"Review feedback addressed\""
+    echo "  after-code-pr-merged   🎉 Status → done, close issue, archive change"
+    echo ""
+  fi
+}
+
 # ---- install / update (delegate to bash scripts) ----------------------------
 cmd_install() {
   if [ "$REPO_MODE" -eq 1 ]; then
@@ -371,7 +538,9 @@ case "$1" in
       *)    echo "unknown hooks subcommand: $1 (try list)"; exit 1 ;;
     esac
     ;;
-  # --- deprecated aliases (old flat ext commands) ---
+  docs)
+    docs_cmd
+    ;;
   list)
     warn "'./mzspec list' is deprecated. Use './mzspec ext list --available' instead."
     ext_list_available
