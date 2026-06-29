@@ -31,6 +31,7 @@ const EVENTS = [
   'after-spec-pr-merged',
   'before-ship',
   'after-code-pr-opened',
+  'after-review-addressed',
   'after-code-pr-merged',
 ];
 
@@ -65,6 +66,10 @@ function renderComment(event, ctx) {
       if (c.changelogRef) lines.push(`CHANGELOG: ${c.changelogRef}`);
       if (c.branch) lines.push(`Branch: \`${c.branch}\``);
       break;
+    case 'after-review-addressed':
+      lines.push(`💬 **Review feedback addressed** for \`${c.change}\`${code.url ? ` — ${code.url}${code.number ? ` (#${code.number})` : ''}` : ''}.`);
+      lines.push(`Fix commits pushed; ready for re-review.`);
+      break;
     case 'after-code-pr-merged': {
       lines.push(`🎉 **Merged**${code.mergedSha ? ` (\`${code.mergedSha}\`)` : ''} — \`${c.change}\` shipped${c.archivePath ? ' & archived' : ''}.`);
       const trace = [c.issueNumber ? `issue #${c.issueNumber}` : '', spec.number ? `spec PR #${spec.number}` : '', code.number ? `code PR #${code.number}` : ''].filter(Boolean);
@@ -96,6 +101,8 @@ function planMutation(event, ctx) {
       return { refs: { branch: c.branch } };
     case 'after-code-pr-opened':
       return { status: 'in-review', refs: { codePr: c.codePr, branch: c.branch, changelogRef: c.changelogRef } };
+    case 'after-review-addressed':
+      return { refs: {} };
     case 'after-code-pr-merged':
       return { status: 'done', refs: { codePr: c.codePr, archivePath: c.archivePath } };
     default:
