@@ -137,6 +137,12 @@ async function fireLifecycle(event, ctx, opts = {}) {
   const gh = link.read(change, startDir);
   if (!gh) return { ok: true, skipped: 'no-link', event, change, did, errors };
 
+  // Idempotency: if this event was already recorded in github.json history, skip
+  // the GitHub comment (but still do status/project/link updates, which are
+  // themselves idempotent). Prevents duplicate comments when a workflow (e.g.
+  // spec-change preflight) runs the same lifecycle command multiple times.
+  const alreadyFired = Array.isArray(gh.history) && gh.history.some((h) => h.event === event);
+
   const issueNumber = gh.issue && gh.issue.number;
   const mut = planMutation(event, ctx);
   const refs = cleanRefs(mut.refs);
@@ -162,7 +168,11 @@ async function fireLifecycle(event, ctx, opts = {}) {
   }
 
   if (source && issueNumber) {
-    try { await source.comment(issueNumber, comment); did.commented = true; } catch (e) { errors.push(`comment: ${e.message}`); }
+    if (!alreadyFired) {
+      try { await source.comment(issueNumber, comment); did.commented = true; } catch (e) { errors.push(`comment: ${e.message}`); }
+    } else {
+      errors.push(`comment-skipped: ${event} already fired for ${change}`);
+    }
     if (mut.status) { try { await source.setStatus(issueNumber, mut.status); did.statusSet = true; } catch (e) { errors.push(`setStatus: ${e.message}`); } }
     if (wantAssign && typeof source.setAssignee === 'function') {
       try { const r = await source.setAssignee(issueNumber, assignWho); did.assigneeSet = true; refs.assignee = r.assignee || assignWho; } catch (e) { errors.push(`setAssignee: ${e.message}`); }
