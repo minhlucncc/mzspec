@@ -31,46 +31,9 @@ implemented natively (no external CLI required).
 A standard SDLC laid out as three swimlane **rows** (top → bottom: **Task Sources · Developer ·
 Reviewer**). The change flows left → right, crossing a **human merge gate** at each PR.
 
-```mermaid
-flowchart LR
-  classDef merge fill:#d1e7dd,stroke:#0f5132,color:#0f5132;
-  classDef gate fill:#fff3cd,stroke:#d39e00,color:#663c00;
-
-  subgraph TS["🗂️ Task Sources"]
-    direction LR
-    SRC["backlog task<br/>(local · GitHub · Mello)"]
-    DONE["status → done"]
-  end
-
-  subgraph DEV["🧑‍💻 Developer · AI agent"]
-    direction LR
-    PULL["/opsx:propose/<br/>(or /opsx:propose-gh)"]
-    SPEC["/opsx:spec/"]
-    SPR["/opsx:spec-pr/<br/>open SPEC PR"]
-    PLAN["/opsx:ship-plan/"]
-    CODE["/opsx:ship-code/<br/>⚙️ gates: test·lint·types·validate"]
-    SHIPPR["/opsx:ship-pr/<br/>open CODE PR"]
-    ADDR["/opsx:address-review/"]
-  end
-
-  subgraph REV["👀 Reviewer · human"]
-    direction LR
-    RSPEC["review SPEC PR"]
-    MSPEC["/opsx:merge-pr/<br/>contract → main"]
-    RCODE["review CODE PR"]
-    MCODE["/opsx:merge-pr/<br/>merge + archive"]
-  end
-
-  SRC --> PULL --> SPEC --> SPR
-  SPR -- "SPEC PR" --> RSPEC --> MSPEC
-  MSPEC -- "merged" --> PLAN --> CODE --> SHIPPR
-  SHIPPR -- "CODE PR" --> RCODE
-  RCODE -- "changes" --> ADDR --> CODE
-  RCODE -- "approved" --> MCODE --> DONE
-
-  class CODE gate;
-  class MSPEC,MCODE merge;
-```
+<p align="center">
+  <img src="docs/assets/flow-diagram.png" alt="mzspec pipeline flow — three swimlanes: Task Sources, Developer, and Reviewer" width="100%">
+</p>
 
 > The agent never self-merges — a human merges both the **SPEC PR** (the contract) and the
 > **CODE PR** (the implementation) via `/opsx:merge-pr`, which also archives the change and fires
