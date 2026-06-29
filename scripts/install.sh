@@ -152,5 +152,5 @@ log "done — $copied file(s) installed, $skipped left in place (use --force to 
 log "next:"
 log "  0. read SDD_GUIDE.md — the spec->ship workflow in 2 minutes"
 log "  1. gates are ZERO-CONFIG — auto-discovered from your manifests"
-log "  2. install extensions: ./mzspec install agent-skills"
+log "  2. install extensions: ./mzspec ext add agent-skills"
 log "  3. run the pipeline:  /opsx:spec  /opsx:spec-pr  /opsx:ship-plan  /opsx:ship-code"
