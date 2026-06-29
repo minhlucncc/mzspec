@@ -20,10 +20,11 @@ implemented natively (no external CLI required).
 ```
 
 > [!TIP]
-> **v0.8.0** — gates are **zero-config** (auto-discovered from your repo's own manifests), the
+> **v0.11.0** — unified `./mzspec` CLI for all operations (`install`, `ext`, `spec`, `docs`, etc.),
+> gates are **zero-config** (auto-discovered from your repo's own manifests), the
 > pipeline fires **lifecycle hooks** at every milestone for board/ticket sync, OpenSpec is now
 > **native** (no external CLI dependency), and shipping can run in an isolated **git worktree**.
-> → [How it works](docs/architecture.md)
+> → `./mzspec docs` for the full workflow overview · [How it works](docs/architecture.md)
 
 ## How a change flows
 
@@ -114,15 +115,18 @@ Reviewer: /opsx:merge-pr → merged, change archived, ticket linked, lifecycle h
 curl -fsSL https://raw.githubusercontent.com/minhlucncc/mzspec/main/scripts/install.sh | bash
 
 # 2. Add the extensions you want
-./mzspec install agent-skills
-./mzspec install task-github
+./mzspec ext add agent-skills
+./mzspec ext add task-github
 
 # 3. See what's available / installed
-./mzspec list
+./mzspec ext list
+
+# 4. View the full workflow overview
+./mzspec docs
 ```
 
 The installer vendors the core pipeline into your project's `.claude/`, writes an **`SDD_GUIDE.md`**
-to orient humans and agents, installs the **`./mzspec`** extension CLI to your project root, and
+to orient humans and agents, installs the **`./mzspec`** unified CLI to your project root, and
 stamps the release in `.claude/.mzspec-version`. OpenSpec is bundled natively — no `npm i -g`
 required. Gates are **zero-config**: auto-discovered from your repo's own manifests
 (`pyproject.toml` / `go.mod` / `pnpm-workspace.yaml`), so no `mzspec.config.json` is needed.
@@ -136,14 +140,27 @@ refreshes them and runs pending migrations. See [docs/install.md](docs/install.m
 
 | Command | What it does |
 |---|---|
-| `./mzspec list [--available\|--installed]` | List extensions |
-| `./mzspec info <name>` | Show what an extension provides |
-| `./mzspec install <name> [--force]` | Install an extension |
-| `./mzspec uninstall <name>` | Remove an extension |
+| `./mzspec ext list [--available\|--installed]` | List extensions |
+| `./mzspec ext info <name>` | Show what an extension provides |
+| `./mzspec ext add <name> [--force]` | Install an extension |
+| `./mzspec ext remove <name>` | Remove an extension |
+
+Other core commands:
+
+| Command | What it does |
+|---|---|
+| `./mzspec docs` | Show the full SDD workflow overview (pipeline + extensions + hooks) |
+| `./mzspec version` | Show the installed mzspec version |
+| `./mzspec spec <subcommand>` | OpenSpec change management (init, new, validate, status, list, archive) |
+| `./mzspec discover` | Auto-discover toolchains from project manifests |
+| `./mzspec template <subcommand>` | Manage planning templates (list, show, path, create, remove) |
+| `./mzspec hooks list` | List registered agent and prompt hooks |
+
+Run `./mzspec help` for the full command tree, or `./mzspec <command> --help` for subcommand details.
 
 Each extension is self-contained under `extensions/<name>/` with its own `install.sh` /
-`uninstall.sh`. (Updating is handled by `scripts/update.sh`, not the `./mzspec` CLI — see
-[Updating](#updating).)
+`uninstall.sh`. Updating is handled by `./mzspec update` (or `scripts/update.sh` from a
+checkout) — see [Updating](#updating).
 
 Now drive the pipeline:
 
@@ -191,11 +208,11 @@ human, on any project, with one install.
 
 ### Extensions
 
-- **`agent-skills`** (`./mzspec install agent-skills`) — the **agent-skill workflow standard**:
+- **`agent-skills`** (`./mzspec ext add agent-skills`) — the **agent-skill workflow standard**:
   engineering-practice skills (TDD, code review, security, debugging, docs/ADRs, git workflow,
   CI/CD, and more) under `.claude/skills/`, routed onto the `/opsx:*` lifecycle by the
   `using-agent-skills` meta-skill, plus a prompt hook for each pipeline phase.
-- **`task-github`** (`./mzspec install task-github`) — GitHub-backed tasking: `/opsx:propose-gh
+- **`task-github`** (`./mzspec ext add task-github`) — GitHub-backed tasking: `/opsx:propose-gh
   <issue>` starts a change from a GitHub issue and links the two, `/opsx:task-log` comments on the
   linked issue, and `/opsx:task-assign` assigns it (defaults to `@me`). Installing it wires the
   spec→ship pipeline to GitHub via the lifecycle hooks; the issue ↔ change link + PR refs live in
@@ -224,7 +241,7 @@ merges before the code PR (implementation), and a human always performs the merg
 ## Updating
 
 ```bash
-bash scripts/update.sh    # or: bash scripts/install.sh --upgrade
+./mzspec update           # or: bash scripts/update.sh
 ```
 
 Updating is idempotent: it re-vendors mzspec-owned files, runs the pending migrations between your
