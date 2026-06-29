@@ -37,7 +37,7 @@ const computed = await agent(
     `Compute the next OpenSpec change name. Use Bash.`,
     `Run: ls -1d openspec/changes/c[0-9]* 2>/dev/null | sed -E 's#.*/c([0-9]+).*#\\1#' | sort -n | tail -1`,
     `Next ordinal = max + 1 (start at 1 if none). Zero-pad to 4 digits.`,
-    `Slug: ${slug ? `"${slug}"` : 'derive a kebab slug from the title/prompt (<= 48 chars)'}.`,
+    `Slug: ${slug ? `"${slug}"` : `derive a kebab slug from the title "${title}" (<= 48 chars, lower-case, hyphens)`}.`,
     `Return { ok: true, change: "cNNNN-<slug>" }.`,
   ].join('\n'),
   { schema: COMPUTE, label: 'compute-change-name', agentType: 'general-purpose' },
