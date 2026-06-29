@@ -158,12 +158,13 @@ let pre = await agent(
     cwdPrefix ? `IMPORTANT: ${cwdPrefix}` : '',
     `Preflight for OpenSpec change "${change}". Use Bash. Read-only except the scaffold step below.`,
     `1. Check if openspec/changes/${change}/ exists. Run: node .claude/workflows/lib/openspec.js status --change "${change}" --json (it errors if absent).`,
-    `2. If it EXISTS: parse changeRoot, proposal/design/tasks artifact paths, delta spec.md paths; read proposal.md for a one-line title; run node .claude/workflows/lib/openspec.js validate "${change}" --strict and report validatePass. Set exists=true, ready=(proposal+tasks+>=1 delta spec present).`,
-    !dryRun && slug
-      ? `3. If it does NOT exist: scaffold it now via "node .claude/workflows/lib/openspec.js new change "${change}"" and draft artifacts following ${SKILL('openspec-propose')} and ${SKILL('spec-driven-development')}.`
-      : `3. If it does NOT exist: set exists=false, ready=false, reason="change not found"${dryRun ? ' (dryRun)' : ' (no slug given to draft)'} and STOP.`,
+    `2. If it EXISTS: parse changeRoot, proposal/design/tasks artifact paths; read proposal.md for a one-line title; run node .claude/workflows/lib/openspec.js validate "${change}" --strict and report validatePass.`,
+    `3. IMPORTANT — detect delta specs by scanning the filesystem: find openspec/changes/${change}/specs/ -name 'spec.md' 2>/dev/null | sort. Capture these paths as specPaths. Set ready=true ONLY when proposal + tasks exist AND at least one delta spec.md is found under specs/. If no delta specs found, set ready=false, reason="no delta specs under specs/<capability>/ — draft them first".`,
     !dryRun ? `4. LIFECYCLE (best-effort): once change EXISTS, run \`node .claude/workflows/lib/lifecycle.js before-spec --change "${change}"\` (no-op when unlinked).` : '',
-    `Return the structured result.`,
+    !dryRun && slug
+      ? `5. If it does NOT exist: scaffold it now via "node .claude/workflows/lib/openspec.js new change "${change}"" and draft artifacts following ${SKILL('openspec-propose')} and ${SKILL('spec-driven-development')}.`
+      : `5. If it does NOT exist: set exists=false, ready=false, reason="change not found"${dryRun ? ' (dryRun)' : ' (no slug given to draft)'} and STOP.`,
+    `Return the structured result. The "specPaths" field must be populated from the filesystem scan (step 3), NOT from openspec status.`,
   ].filter(Boolean).join('\n'),
   { schema: PREFLIGHT, label: 'preflight', phase: 'Preflight', agentType: 'general-purpose' },
 )
