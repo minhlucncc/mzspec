@@ -35,6 +35,7 @@ linked from each capability's `## Purpose`, and **`openspec/specs/<capability>/s
 is now the canonical source of truth** for current behavior. So:
 
 - A decision scoped to **one change** → that change's `design.md`.
+- A **UI/visual decision** (component hierarchy, layout, interaction states) → that change's `ui.md`.
 - A **durable, cross-cutting** decision future changes must respect → a doc under
   `docs/design/` (the former-RFC home), referenced from the relevant capability spec.
 

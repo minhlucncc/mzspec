@@ -65,7 +65,7 @@ const AXES = [
   { key: 'testability', title: 'Testability', brief: 'every scenario decidable with concrete literals and a definite WHEN/THEN; NO soft MAY / "to the extent of" in an intended-behavior THEN; edge/negative scenarios where they matter.' },
   { key: 'minimality', title: 'Minimality & YAGNI', brief: 'normative requirements describe only in-scope/built behavior; future options belong in design.md, not requirements; spec behavior, not process; no requirement that changes no test.' },
   { key: 'consistency', title: 'Consistency & DRY', brief: 'each behavior defined once (reference, do not restate); canonical glossary terms; consistent with the CLAUDE.md invariants (a contradiction is a Blocker).' },
-  { key: 'completeness', title: 'Completeness (not partials)', brief: 'every proposal claim -> a requirement; every requirement -> >=1 scenario AND covering task(s) in tasks.md; every task -> a requirement; design.md records the non-trivial decisions.' },
+  { key: 'completeness', title: 'Completeness (not partials)', brief: 'every proposal claim -> a requirement; every requirement -> >=1 scenario AND covering task(s) in tasks.md; every task -> a requirement; design.md records the non-trivial decisions; ui.md records UI/visual decisions for user-facing changes.' },
 ]
 
 // ---------------------------------------------------------------- schemas
@@ -80,6 +80,7 @@ const PREFLIGHT = {
     changeRoot: { type: 'string' },
     proposalPath: { type: ['string', 'null'] },
     designPath: { type: ['string', 'null'] },
+    uiPath: { type: ['string', 'null'] },
     tasksPath: { type: ['string', 'null'] },
     specPaths: { type: 'array', items: { type: 'string' } },
     title: { type: 'string' },
@@ -178,6 +179,7 @@ const CONTEXT = [
   pre.proposalPath ? `- proposal: ${pre.proposalPath}` : '',
   pre.designPath ? `- design: ${pre.designPath}` : '',
   pre.tasksPath ? `- tasks: ${pre.tasksPath}` : '',
+  pre.uiPath ? `- ui (visual design): ${pre.uiPath}` : '',
   pre.specPaths && pre.specPaths.length ? `- delta specs: ${pre.specPaths.join(', ')}` : '- delta specs: (none)',
 ].filter(Boolean).join('\n')
 log(`preflight ok — ${change}: ${pre.specPaths.length} delta spec(s); validate ${pre.validatePass ? 'passed' : 'NOT passing'}`)

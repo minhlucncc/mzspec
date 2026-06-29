@@ -96,6 +96,7 @@ const SCAFFOLD = {
     ok: { type: 'boolean' }, reason: { type: 'string' },
     change: { type: 'string', description: 'the created cNNNN-<slug> change name' },
     proposalPath: { type: ['string', 'null'] },
+    uiPath: { type: ['string', 'null'] },
   },
 }
 phase('Scaffold')
@@ -108,7 +109,8 @@ const made = await agent(
     `The change name is already computed: "${changeName}". Use this exact name.`,
     `1. Create it: node .claude/workflows/lib/openspec.js new change "${changeName}".`,
     `2. Seed proposal.md: get its path (node .claude/workflows/lib/openspec.js instructions proposal --change "${changeName}" --json) and write a proposal whose "## What" / "## Why" are grounded in the request above. Keep it faithful to the request; do NOT invent scope.`,
-    `Return ok, reason, change ("${changeName}"), proposalPath.`,
+    `2a. Optionally create ui.md: if the change has a visible user-facing surface (screens, components, forms, portals — check the request for keywords like "UI", "page", "screen", "component", "form", "frontend", or "portal"), create ui.md following the ui-design skill. Path: node .claude/workflows/lib/openspec.js instructions ui --change "${changeName}" --json. If no UI surface, skip it.`,
+    `Return ok, reason, change ("${changeName}"), proposalPath, uiPath.`,
   ].filter(Boolean).join('\n'),
   { schema: SCAFFOLD, label: 'propose-scaffold', phase: 'Scaffold', agentType: 'general-purpose' },
 )
@@ -124,6 +126,7 @@ const nextStep = worktreePath
 
 return {
   stage: 'done', ok: true, change: made.change, proposalPath: made.proposalPath || null,
+  uiPath: made.uiPath || null,
   worktreePath,
   nextStep,
 }

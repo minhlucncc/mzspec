@@ -33,6 +33,7 @@ const PREFLIGHT = {
     changeRoot: { type: 'string' },
     proposalPath: { type: ['string', 'null'] },
     designPath: { type: ['string', 'null'] },
+    uiPath: { type: ['string', 'null'] },
     tasksPath: { type: 'string' },
     specPaths: { type: 'array', items: { type: 'string' } },
     title: { type: 'string', description: 'human-readable change title from proposal.md' },
@@ -163,6 +164,7 @@ const CONTEXT = [
   `Change "${change}" — "${title}". Ground the plan in these artifacts (read them):`,
   pre.proposalPath ? `- proposal (what & why): ${pre.proposalPath}` : '',
   pre.designPath ? `- design (how): ${pre.designPath}` : '',
+  pre.uiPath ? `- ui (visual design): ${pre.uiPath}` : '',
   `- tasks (the checklist to expand): ${pre.tasksPath}`,
   pre.specPaths && pre.specPaths.length ? `- delta specs (the scenarios the tests must assert): ${pre.specPaths.join(', ')}` : '- delta specs: (none)',
 ].join('\n')

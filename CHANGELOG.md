@@ -4,6 +4,39 @@ All notable changes to mzspec are recorded here. The installed release is stampe
 into each project at `.claude/.mzspec-version`; `update.sh` runs the migrations
 between a project's stamped version and the current `VERSION`.
 
+## 0.11.0 — UI/UX design layer: ui.md artifact + ui-design skill
+
+**Added a dedicated UI/visual design layer to the pipeline.** A new `ui.md` artifact
+captures wireframes, component trees, UI states (loading/empty/error/populated/edge
+cases), user flows, visual decisions, responsive behavior, and accessibility. A new
+`ui-design` skill teaches the AI how to produce effective UI designs. The `design.md`
+stays architecture-only; UI design gets its own file.
+
+Added:
+- `core/skills/ui-design/SKILL.md` — full UI design methodology: explore patterns →
+  wireframes (ASCII art) → component tree → UI states → user flows → visual decisions →
+  responsive + a11y → connection to implementation tasks. Includes the `ui.md` template.
+- `lib/openspec.js` — `changeInfo()` detects `ui.md`, `validateChange()` warns on
+  missing `ui.md` (optional), `instructions()` resolves `ui` path.
+- `core/skills/openspec-propose/SKILL.md` — `ui.md` artifact + detection guidance
+  (auto-creates when prompt has UI keywords).
+- `core/workflows/propose.js` — optional `ui.md` scaffolding for changes with a
+  visible user-facing surface.
+
+Changed:
+- `core/skills/planning-and-task-breakdown/SKILL.md` — differentiates architecture
+  (`design.md`) vs UI (`ui.md`) throughout: overview, UI task guidance, template,
+  verification checklist.
+- `core/skills/spec-driven-development/SKILL.md` — phase diagram includes `ui.md`
+  under PLAN, Phase 2 mentions both `design.md` and `ui.md`.
+- `core/skills/spec-review-and-quality/SKILL.md` — completeness axis checks `ui.md`
+  for UI changes.
+- `core/workflows/spec-change.js` — reviewers read `ui.md`, completeness axis
+  validates it.
+- `core/workflows/ship-plan.js` — planner reads `ui.md` when grouping tasks.
+- `extensions/agent-skills/skills/documentation-and-adrs/SKILL.md` — UI decisions
+  go in `ui.md`.
+
 ## 0.10.0 — GitHub Projects board lifecycle + split merge-pr into spec/code workflows
 
 **Lifecycle.js now updates GitHub Projects boards** when the change's `github.json`

@@ -26,14 +26,17 @@ Write a structured specification before writing any code. The spec is the shared
 Spec-driven development has four phases. Do not advance to the next phase until the current one is validated by a human. Each phase corresponds to an OpenSpec step:
 
 ```
-SPECIFY ────────→ PLAN ────────→ TASKS ────────→ IMPLEMENT
-/opsx:propose     design.md      tasks.md        /opsx:ship
-(proposal.md +    (decisions &   (ordered,       (ship-plan →
- delta specs)      rationale)     verifiable)      ship-code)
-   │                 │              │                 │
-   ▼                 ▼              ▼                 ▼
- Human            Human          Human             Human
- reviews          reviews        reviews           reviews
+SPECIFY ────────→ PLAN ─────────────→ TASKS ────────→ IMPLEMENT
+/opsx:propose     design.md          tasks.md        /opsx:ship
+(proposal.md +    (decisions &       (ordered,       (ship-plan →
+ delta specs)      rationale)         verifiable)      ship-code)
+                   ui.md
+                   (UI/visual
+                    design)
+   │                 │                  │                 │
+   ▼                 ▼                  ▼                 ▼
+ Human            Human              Human             Human
+ reviews          reviews            reviews           reviews
 ```
 
 `/opsx:explore` is the optional pre-SPECIFY think-only mode for shaping a vague idea before you propose.
@@ -118,15 +121,18 @@ REFRAMED SUCCESS CRITERIA:
 → Are these the right targets?
 ```
 
-### Phase 2: Plan → `design.md`
+### Phase 2: Plan → `design.md` (and `ui.md` for UI changes)
 
-With the validated proposal, capture the technical plan in the change's `design.md`:
+With the validated proposal, capture the technical plan in the change's `design.md`
+and, for user-facing changes, the visual plan in `ui.md`:
 
 1. Identify the major components and their dependencies (which packages, in what order, and each unit's toolchain — py/go/ts)
 2. Determine the implementation order (foundations first — e.g. data model/migration before the API surface)
 3. Note risks and mitigation strategies (tenant isolation, ACL scoping, citation refusal)
 4. Identify what can be built in parallel vs. sequential
 5. Define verification checkpoints between phases
+6. For UI changes: create `ui.md` with wireframes, component tree, UI states,
+   user flows, and visual decisions following the `ui-design` skill
 
 `design.md` should be reviewable: the human reads it and says "yes, that's the right approach" or "no, change X." See `planning-and-task-breakdown` for the design and dependency-graph mechanics.
 
@@ -183,11 +189,12 @@ Before proceeding to implementation, confirm:
 - [ ] Success criteria are specific and testable (and reference a backing benchmark gate where they assert a guarantee)
 - [ ] Boundaries (Always/Ask First/Never) are defined
 - [ ] `design.md` and `tasks.md` exist and `openspec validate "<change>" --strict` passes
+- [ ] `ui.md` exists and is well-formed for user-facing changes
 
 ## MeKnow notes
 
 - This skill is the SPECIFY/PLAN/TASKS/IMPLEMENT mapping onto OpenSpec: SPECIFY =
-  `/opsx:propose` (proposal.md + delta specs), PLAN = `design.md`, TASKS =
+  `/opsx:propose` (proposal.md + delta specs), PLAN = `design.md` + `ui.md` (for UI), TASKS =
   `tasks.md`, IMPLEMENT = `/opsx:ship` (ship-plan → ship-code, once the spec PR is
   merged). Never
   introduce a parallel PRD format — the former RFCs are now OpenSpec capability

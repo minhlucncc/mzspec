@@ -12,7 +12,7 @@ then findings are consolidated into a review report.
 3. **Testability** — every requirement has a clear pass/fail test scenario
 4. **Minimality / YAGNI** — no scope beyond what's stated, no speculative features
 5. **Consistency / DRY** — terminology is consistent with existing specs, no duplication
-6. **Completeness** — no dangling references, all edge cases addressed
+6. **Completeness** — no dangling references, all edge cases addressed; for UI changes, `ui.md` must exist with loading/empty/error states documented
 
 ## Process
 
