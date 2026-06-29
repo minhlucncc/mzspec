@@ -39,11 +39,5 @@
   "gatesDir": "gates",
   "templatesDir": "openspec/templates",
   "customGates": [],
-  "invariants": [],
-  "taskSources": [
-    { "name": "local", "type": "local-folder", "enabled": true, "config": { "path": ".tasks" } },
-    { "name": "github", "type": "gh-issues", "enabled": false, "config": { "repo": "owner/repo", "label": "backlog" } },
-    { "name": "mello", "type": "mello-cli", "enabled": false, "config": { "board": "<board-id>", "column": "Todo" } }
-  ],
-  "taskStatusMap": {}
+  "invariants": []
 }

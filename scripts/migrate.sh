@@ -81,6 +81,31 @@ migrate_0001_remove_ship_all() {
 log "0001 — remove experimental ship-all batch pipeline"
 migrate_0001_remove_ship_all
 
+# 0002 — retire the multi-source `tasks` extension (replaced by `task-github`). Prunes the
+#        old vendored files; the github.json-backed lifecycle ships with task-github now.
+#        See migrations/0.9.0-task-github.sh (the upgrade path that also reinstalls).
+migrate_0002_remove_tasks_extension() {
+  rm_path ".claude/workflows/task.js"
+  rm_path ".claude/workflows/lib/task-link.js"
+  rm_path ".claude/workflows/lib/task-link.test.js"
+  rm_path ".claude/workflows/lib/task-sources"
+  rm_path ".claude/task-sources"
+  rm_path ".claude/commands/opsx/task-create.md"
+  rm_path ".claude/commands/opsx/task-list.md"
+  rm_path ".claude/commands/opsx/task-pull.md"
+  rm_path ".claude/commands/opsx/task-push.md"
+  # lifecycle.js shares a path with task-github's new version — prune ONLY the old variant.
+  for f in ".claude/workflows/lib/lifecycle.js" ".claude/workflows/lib/lifecycle.test.js"; do
+    local p="$DEST/$f"
+    [ -f "$p" ] && grep -qE "task-sources/index|require\('\./task-link" "$p" || continue
+    if [ "$DRY" -eq 1 ]; then log "  would remove $f (old multi-source variant)"; else rm -f "$p"; log "  removed $f (old multi-source variant)"; fi
+    pruned=$((pruned + 1))
+  done
+}
+
+log "0002 — retire multi-source tasks extension (use task-github)"
+migrate_0002_remove_tasks_extension
+
 # ---- summary -------------------------------------------------------------------
 if [ "$pruned" -eq 0 ]; then
   log "done — nothing to prune (already up to date)."

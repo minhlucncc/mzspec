@@ -1,7 +1,8 @@
 # Lifecycle hooks — wiring a change to a backlog board
-> Lifecycle hooks fire backlog ticket updates at each pipeline stage.
-> They are part of the **tasks extension** (`extensions/tasks/`).
-> For skill injection hooks, see [hooks.md](hooks.md).
+> Lifecycle hooks fire backlog updates at each pipeline stage.
+> The built-in GitHub sync ships in the **task-github extension** (`extensions/task-github/`);
+> see [task-github.md](task-github.md). This page documents the generic hook seam for any
+> *other* board. For skill injection hooks, see [hooks.md](hooks.md).
 
 mzspec fires a **lifecycle event** at each stage of the spec→ship pipeline. A project can react to
 those events to keep an external backlog (a GitHub Projects board, an issue tracker, Slack, …) in
@@ -29,8 +30,8 @@ From `lib/lifecycle.js`, in pipeline order:
 Both live under `<repo>/openspec/hooks/` and are best-effort — a hook failure never fails a ship.
 
 1. **Shell hook** — executable `openspec/hooks/on-<event>` (any language; JSON context on stdin,
-   optional JSON on stdout). Deterministic. Driven by `lib/lifecycle.js`, so it only runs when the
-   change is linked via `.task-link.json` (the `taskSources` path). See `lib/run-hook.js`.
+   optional JSON on stdout). Deterministic. Driven by `lib/lifecycle.js` (vendored by task-github),
+   so it only runs when the change is linked via `github.json`. See `lib/run-hook.js`.
 2. **Agent-form hook** — `openspec/hooks/on-<event>.agent.md` (natural-language instructions an
    agent executes with tools like `gh`, `git`, `node`). Run by the workflows themselves for **every**
    event. This is the flavor to use for board integrations that have no built-in adapter.
@@ -41,17 +42,15 @@ For each event the workflow checks `openspec/hooks/on-<event>.agent.md`; if pres
 and **follows its instructions** with this context: the change name, the event, and the relevant refs
 (`branch`, the spec/code PR URL, the merge SHA — whichever apply). The hook decides what to do.
 
-The conventional **ticket reference** lives in the change's `proposal.md` **frontmatter**:
+The conventional **link reference** lives in the change's `openspec/changes/<change>/github.json`
+(written by `/opsx:propose-gh` from the task-github extension):
 
-```markdown
----
-ticket: https://github.com/<owner>/<repo>/issues/90
----
+```json
+{ "change": "c0007-add-login", "issue": { "number": 90, "url": "https://github.com/<owner>/<repo>/issues/90" } }
 ```
 
-`/opsx:spec --ticket <url|#N>` records it idempotently (never overwrites). A hook reads it to find
-the backlog item to update. If `ticket:` is absent, a well-written hook should log "no ticket — skip"
-and no-op.
+A hook reads `.issue.number` to find the backlog item to update. If `github.json` is absent (the
+change isn't linked), a well-written hook should log "no link — skip" and no-op.
 
 ### Example: GitHub Projects board
 

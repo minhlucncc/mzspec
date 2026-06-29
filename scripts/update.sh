@@ -112,7 +112,8 @@ if [ "$FORCE_SKILLS" -eq 1 ]; then
 else
   log "installing any missing extensions ..."
   bash "$SRC/extensions/agent-skills/install.sh" --dest "$DEST" 2>/dev/null || true
-  bash "$SRC/extensions/tasks/install.sh" --dest "$DEST" 2>/dev/null || true
+  # task-github is opt-in (./mzspec install task-github). The 0.9.0 migration installs it
+  # automatically for projects that previously used the retired `tasks` extension.
 fi
 
 # install.sh re-stamps the version to NEW; migrations run against the OLD→NEW gap.

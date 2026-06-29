@@ -1,9 +1,9 @@
 'use strict';
 /*
- * exec — run an external CLI (gh / mello) and capture stdout.
+ * exec — run an external CLI (gh) and capture stdout.
  *
  * Kept tiny and dependency-free. Tests override the binary by putting a stub of
- * the same name earlier on PATH, so adapters never need a special test mode.
+ * the same name earlier on PATH, so the adapter never needs a special test mode.
  */
 
 const { execFileSync } = require('child_process');

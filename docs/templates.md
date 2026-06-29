@@ -44,7 +44,7 @@ should **reference** the project's existing standards rather than restate them.
 
 ## How templates are used (the planning rule)
 
-During planning (e.g. `/opsx:spec`, or right after `/opsx:task-pull`):
+During planning (e.g. `/opsx:spec`, or right after `/opsx:propose` / `/opsx:propose-gh`):
 
 1. **List** — `node .claude/workflows/lib/templates.js list --json`.
 2. **Match** the change against the template `description`s.
