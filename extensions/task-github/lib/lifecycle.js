@@ -128,7 +128,7 @@ async function fireLifecycle(event, ctx, opts = {}) {
   const o = opts || {};
   const startDir = o.startDir || process.cwd();
   const errors = [];
-  const did = { commented: false, statusSet: false, assigneeSet: false, linkWritten: false, hookRan: false };
+  const did = { commented: false, statusSet: false, assigneeSet: false, projectUpdated: false, linkWritten: false, hookRan: false };
 
   if (!EVENTS.includes(event)) throw new Error(`unknown lifecycle event: ${event} (expected one of ${EVENTS.join(', ')})`);
   const change = ctx && ctx.change;
@@ -166,6 +166,13 @@ async function fireLifecycle(event, ctx, opts = {}) {
     if (mut.status) { try { await source.setStatus(issueNumber, mut.status); did.statusSet = true; } catch (e) { errors.push(`setStatus: ${e.message}`); } }
     if (wantAssign && typeof source.setAssignee === 'function') {
       try { const r = await source.setAssignee(issueNumber, assignWho); did.assigneeSet = true; refs.assignee = r.assignee || assignWho; } catch (e) { errors.push(`setAssignee: ${e.message}`); }
+    }
+    // Update GitHub Projects board if configured in github.json
+    if (gh.project && gh.project.org && gh.project.number && typeof source.setProjectStatus === 'function') {
+      try {
+        const pr = await source.setProjectStatus(issueNumber, mut.status || gh.status, gh.project);
+        did.projectUpdated = pr && pr.ok;
+      } catch (e) { errors.push(`project-board: ${e.message}`); }
     }
   } else {
     errors.push('no-github-issue: link-only (comment/status/assignee skipped)');

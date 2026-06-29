@@ -31,6 +31,16 @@ function prRef(x) {
   return { url: (x && x.url) || '', number: (x && x.number) || 0, mergedSha: (x && x.mergedSha) || '' };
 }
 
+function projectRef(x) {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
+  return {
+    org: (x && x.org) || '',
+    number: (x && x.number) || 0,
+    field: (x && x.field) || 'Status',
+    options: { ...{ todo: 'Todo', 'in-progress': 'In Progress', 'in-review': 'In Review', done: 'Done' }, ...((x && x.options) || {}) },
+  };
+}
+
 // Default any missing field to the full v1 shape. Never throws; returns null for
 // non-objects so a garbage file reads as "no link".
 function migrate(obj) {
@@ -46,6 +56,7 @@ function migrate(obj) {
   o.codePr = prRef(o.codePr);
   if (typeof o.changelogRef !== 'string') o.changelogRef = '';
   if (typeof o.archivePath !== 'string') o.archivePath = '';
+  o.project = projectRef(o.project);
   if (!Array.isArray(o.history)) o.history = [];
   return o;
 }
@@ -127,6 +138,12 @@ function main() {
     if (Object.keys(issuePatch).length) setRefs(obj, { issue: issuePatch });
     if (a.branch && a.branch !== true) obj.branch = a.branch;
     if (a.status && a.status !== true) obj.status = a.status;
+    if (a['project-org'] && a['project-org'] !== true || a['project-number']) {
+      obj.project = obj.project || {};
+      if (a['project-org'] && a['project-org'] !== true) obj.project.org = a['project-org'];
+      if (a['project-number'] && a['project-number'] !== true) obj.project.number = Number(a['project-number']) || 0;
+      if (a['project-field'] && a['project-field'] !== true) obj.project.field = a['project-field'];
+    }
     appendHistory(obj, { at: a.at && a.at !== true ? a.at : '', event: 'propose-gh', status: obj.status });
     const p = write(change, obj);
     process.stdout.write(JSON.stringify({ ok: true, path: p, change, issue: obj.issue, status: obj.status }, null, a.json ? 2 : 0) + '\n');
@@ -140,4 +157,4 @@ if (require.main === module) {
   try { main(); } catch (e) { process.stderr.write('github-link: ' + (e && e.message ? e.message : String(e)) + '\n'); process.exit(1); }
 }
 
-module.exports = { V, linkPath, issueRef, prRef, migrate, read, write, appendHistory, setRefs };
+module.exports = { V, linkPath, issueRef, prRef, projectRef, migrate, read, write, appendHistory, setRefs };

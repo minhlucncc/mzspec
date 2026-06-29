@@ -119,6 +119,32 @@ class Github {
     run(this.bin, ['issue', 'edit', String(id), ...this._repoArgs(), '--add-assignee', who]);
     return { id: String(id), assignee: who };
   }
+
+  // Update a GitHub Projects board card status. `project` must have { org, number, field, options }.
+  // The card is found by matching the issue number in the project items. Best-effort.
+  // status is the normalized status (todo|in-progress|in-review|done).
+  async setProjectStatus(issueNumber, status, project) {
+    if (!project || !project.org || !project.number) return { skipped: true, reason: 'no-project-config' };
+    const { org, number: projectNum, field: fieldName, options } = project;
+    const column = options && options[status];
+    if (!column) return { skipped: true, reason: `no column mapping for status "${status}"` };
+
+    const projectId = runJson(this.bin, ['project', 'view', String(projectNum), '--owner', org, '--format', 'json', '--jq', '.id']);
+    if (!projectId) return { skipped: true, reason: 'project-not-found', project: `${org}/${projectNum}` };
+
+    const fields = runJson(this.bin, ['project', 'field-list', String(projectNum), '--owner', org, '--format', 'json']);
+    const statusField = (fields || []).find((f) => f.name === fieldName);
+    if (!statusField) return { skipped: true, reason: `field "${fieldName}" not found`, project: `${org}/${projectNum}` };
+    const option = (statusField.options || []).find((o) => o.name === column);
+    if (!option) return { skipped: true, reason: `option "${column}" not found in field "${fieldName}"`, project: `${org}/${projectNum}` };
+
+    const items = runJson(this.bin, ['project', 'item-list', String(projectNum), '--owner', org, '--format', 'json']);
+    const item = (items || []).find((i) => i.content && i.content.number === issueNumber);
+    if (!item) return { skipped: true, reason: `issue #${issueNumber} not on project board`, project: `${org}/${projectNum}` };
+
+    run(this.bin, ['project', 'item-edit', '--id', item.id, '--project-id', projectId, '--field-id', statusField.id, '--single-select-option-id', option.id]);
+    return { ok: true, project: `${org}/${projectNum}`, card: item.id, column };
+  }
 }
 
 // ---- CLI -----------------------------------------------------------------------
@@ -130,6 +156,8 @@ class Github {
 //   node github.js comment <id> [--text T]      (reads stdin when --text is absent)
 //   node github.js set-status <id> <status>
 //   node github.js set-assignee <id> <login>     (login may be @me; empty clears)
+//   node github.js set-project-status <issue-number> <status>
+//                   [--project-org O] [--project-number N] [--project-field "Status"]
 function parseArgs(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -168,6 +196,15 @@ async function main() {
     case 'set-assignee':
       if (!a._[1]) throw new Error('usage: github.js set-assignee <id> <login>');
       res = await gh.setAssignee(a._[1], a._[2] || '');
+      break;
+    case 'set-project-status':
+      if (!a._[1] || !a._[2]) throw new Error('usage: github.js set-project-status <issue-number> <status> [--project-org O] [--project-number N] [--project-field F]');
+      res = await gh.setProjectStatus(Number(a._[1]), a._[2], {
+        org: a['project-org'] && a['project-org'] !== true ? a['project-org'] : '',
+        number: a['project-number'] && a['project-number'] !== true ? Number(a['project-number']) : 0,
+        field: a['project-field'] && a['project-field'] !== true ? a['project-field'] : 'Status',
+        options: a['project-options'] && a['project-options'] !== true ? JSON.parse(a['project-options']) : undefined,
+      });
       break;
     default:
       process.stderr.write('usage: github.js <get|list|comment|set-status|set-assignee> …\n');

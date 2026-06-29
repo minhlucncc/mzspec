@@ -14,6 +14,9 @@ let A = typeof args === 'string' ? JSON.parse(args) : args
 A = A || {}
 const issue = A.issue != null ? String(A.issue) : '' // #N, N, or an issue URL
 const date = A.date // YYYY-MM-DD passed in (Date.now() unavailable in scripts)
+const projectOrg = A.projectOrg || ''   // org for GitHub Projects board (empty = skip)
+const projectNumber = A.projectNumber || '' // board number
+const projectField = A.projectField || 'Status'
 
 if (!issue) throw new Error('propose-gh requires args { issue: "<#N|N|url>", date? }')
 if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Unsafe date (expected YYYY-MM-DD): ' + date)
@@ -108,7 +111,7 @@ phase('Link')
 const linked = await agent(
   [
     `Bind OpenSpec change "${change}" to GitHub issue #${iss.number}, copy the local TASK.md into the change dir for traceability, flip the issue to in-progress, and fire the before-spec lifecycle. Use Bash. BEST-EFFORT after the link write — never fail the whole flow once the link exists.`,
-    `1. Write the link (SSOT): ${LINK} link "${change}" --issue-number ${iss.number} --issue-url ${JSON.stringify(iss.url)} --issue-title ${JSON.stringify(iss.title)} --status in-progress${date ? ` --at ${date}` : ''}. This creates openspec/changes/${change}/github.json. If it fails, return ok:false.`,
+    `1. Write the link (SSOT): ${LINK} link "${change}" --issue-number ${iss.number} --issue-url ${JSON.stringify(iss.url)} --issue-title ${JSON.stringify(iss.title)} --status in-progress${projectOrg ? ` --project-org ${projectOrg}` : ''}${projectNumber ? ` --project-number ${projectNumber}` : ''}${projectField ? ` --project-field ${projectField}` : ''}${date ? ` --at ${date}` : ''}. This creates openspec/changes/${change}/github.json with the issue link${projectOrg ? ' + project board config' : ''}. If it fails, return ok:false.`,
     `2. Copy TASK.md into the change dir for traceability: cp ${TASK_FILE} openspec/changes/${change}/TASK.md. On error, log and CONTINUE (set taskMdCopied:false).`,
     `3. Clean up the staging file: rm -f ${TASK_FILE} && rmdir ${TASK_DIR} 2>/dev/null || true.`,
     `4. Flip the issue to in-progress on GitHub: ${GH} set-status ${iss.number} in-progress. On error, log and CONTINUE (set inProgress:false).`,

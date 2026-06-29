@@ -29,8 +29,10 @@ inferred from it).
    explicit choice.
 3. **Launch the Workflow** (date from context):
    ```
-   Workflow({ name: 'propose-gh', args: { issue: '<#N|N|url>', date: '<YYYY-MM-DD>' } })
+   Workflow({ name: 'propose-gh', args: { issue: '<#N|N|url>', date: '<YYYY-MM-DD>', projectOrg: '<org>', projectNumber: '<board-number>' } })
    ```
+   Optional project args: `projectOrg` and `projectNumber` link the issue card to a GitHub
+   Projects board and auto-move it through columns as the change progresses (via lifecycle.js).
    Phases: **Resolve** (fetch the issue) → **Scaffold** (write `.github/issues/<n>/task.md`
    → delegate to the core `propose` workflow via "read TASK.md") → **Link** (`github-link.js
    link` writes `github.json`, copies `TASK.md` into the change dir, `github.js set-status
