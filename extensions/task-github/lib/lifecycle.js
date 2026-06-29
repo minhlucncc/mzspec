@@ -161,7 +161,7 @@ async function fireLifecycle(event, ctx, opts = {}) {
 
   const comment = renderComment(event, fullCtx);
   const assignWho = o.assignee == null ? '@me' : o.assignee;
-  const wantAssign = event === 'after-code-pr-opened' && assignWho && assignWho !== 'none' && !(task && task.assignee);
+  const wantAssign = (event === 'after-code-pr-opened' || event === 'after-spec-pr-opened') && assignWho && assignWho !== 'none' && !(task && task.assignee);
 
   if (o.dryRun) {
     return { ok: true, dryRun: true, event, change, issueNumber, taskId: String(issueNumber || ''), comment, statusTo: mut.status || null, assignTo: wantAssign ? assignWho : null, refs, did, errors };
