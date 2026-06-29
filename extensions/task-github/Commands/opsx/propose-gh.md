@@ -29,14 +29,16 @@ inferred from it).
    explicit choice.
 3. **Launch the Workflow** (date from context):
    ```
-   Workflow({ name: 'propose-gh', args: { issue: '<#N|N|url>', date: '<YYYY-MM-DD>', projectOrg: '<org>', projectNumber: '<board-number>' } })
+   Workflow({ name: 'propose-gh', args: { issue: '<#N|N|url>', date: '<YYYY-MM-DD>', projectOrg: '<org>', projectNumber: '<board-number>', worktree: <true|false> } })
    ```
    Optional project args: `projectOrg` and `projectNumber` link the issue card to a GitHub
-   Projects board and auto-move it through columns as the change progresses (via lifecycle.js).
+   Projects board and auto-move it through columns via lifecycle.js.
+   With `--worktree`, creates a persistent spec worktree (`../<project>-spec-<change>/`)
+   and scaffolds inside it, so the main checkout stays on the base branch.
    Phases: **Resolve** (fetch the issue) → **Scaffold** (write `.github/issues/<n>/task.md`
-   → delegate to the core `propose` workflow via "read TASK.md") → **Link** (`github-link.js
-   link` writes `github.json`, copies `TASK.md` into the change dir, `github.js set-status
-   … in-progress`, then `lifecycle.js before-spec` comments the issue).
+   → delegate to the core `propose` workflow with `worktree:true`) → **Link** (in the worktree:
+   `github-link.js link` writes `github.json`, `github.js set-status … in-progress`,
+   `lifecycle.js before-spec` comments the issue).
 4. **Relay the result.** Report the linked `issueNumber`, the created `change`, the
    `proposalPath`, and the next step (`/opsx:spec <change>`). On failure surface
    `stage` + `reason`.

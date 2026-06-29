@@ -17,6 +17,7 @@ const date = A.date // YYYY-MM-DD passed in (Date.now() unavailable in scripts)
 const projectOrg = A.projectOrg || ''   // org for GitHub Projects board (empty = skip)
 const projectNumber = A.projectNumber || '' // board number
 const projectField = A.projectField || 'Status'
+const worktree = !!A.worktree  // create persistent spec worktree
 
 if (!issue) throw new Error('propose-gh requires args { issue: "<#N|N|url>", date? }')
 if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Unsafe date (expected YYYY-MM-DD): ' + date)
@@ -100,6 +101,7 @@ const scaffolded = await workflow('propose', {
   prompt: `Read the task from ${TASK_FILE} and scaffold a new OpenSpec change from it. Base the proposal on what you read. Keep it faithful to the task description.`,
   title: iss.title,
   date,
+  worktree,
 })
 if (!scaffolded || !scaffolded.ok || !scaffolded.change) {
   return { stage: 'scaffold', ok: false, reason: scaffolded ? (scaffolded.reason || 'propose did not return a change') : 'propose returned null', issue: issueNum }

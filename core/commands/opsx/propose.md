@@ -8,37 +8,36 @@ tags: [workflow, openspec, propose, scaffold]
 Start a new change from a description of what to build. `/opsx:propose`
 **only scaffolds** — it computes the next `cNNNN-<slug>`, runs `openspec new change`,
 and drafts `proposal.md` grounded in your prompt. It does not review, validate, or
-touch any task source; that separation is deliberate. Flow: `/opsx:propose <what>` →
-`/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship-*`.
+touch any task source; that separation is deliberate.
+
+Flow: `/opsx:propose <what>` → `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship-*`.
 
 **The prompt can be either**:
-- **Inline text** — a free-text description of the change (e.g. `/opsx:propose add login`)
-- **A file pointer** — "read the task from `<path>`" where the adapter has written
-  the task content to a local file (e.g. `.github/issues/90/task.md`). The agent
-  reads the file and scaffolds from it. This is how source adapters hand off:
-  they fetch from an external backlog, write a local `TASK.md`, and tell propose
-  to read it.
+- **Inline text** — a free-text description of the change
+- **A file pointer** — "read the task from `<path>`" where an adapter has written
+  the task content to a local file
 
-> To start from a GitHub issue and link the two (issue ↔ change, lifecycle sync),
-> install the **task-github** extension and use `/opsx:propose-gh <issue>` instead.
-> It writes the issue to `.github/issues/<n>/task.md`, delegates to propose with
-> a "read the file" prompt, then links the change to the issue.
+> To start from a GitHub issue and link it, use the **task-github** extension:
+> `/opsx:propose-gh <issue>` instead.
 
-**Input**: `<what>` (required) — the description or file pointer. Optionally
-`--slug <kebab>` to pin the slug.
+**Options**
+- `--slug <kebab>` — pin the kebab slug (otherwise derived from the prompt)
+- `--worktree` — create a **persistent spec worktree** (`../<project>-spec-<cNNNN-<slug>/`)
+  on a `spec/<cNNNN-<slug>` branch off `main`. All scaffolding happens inside the
+  worktree, so the main checkout stays on the base branch and multiple specs can be
+  worked on simultaneously.
+- `--base <branch>` — base branch for the spec worktree (default: main)
 
 **Steps**
 
 1. **Confirm scope.** Restate the change in one line and the `cNNNN-<slug>` it will create.
-   If the request is broad enough to be several changes, say so and suggest splitting.
 2. **Launch the Workflow** (date from context):
    ```
-   Workflow({ name: 'propose', args: { prompt: '<what>', slug: '<slug|undefined>', date: '<YYYY-MM-DD>' } })
+   Workflow({ name: 'propose', args: { prompt: '<what>', slug: '<slug|undefined>', date: '<YYYY-MM-DD>', worktree: true|false } })
    ```
-   Phase: **Scaffold** (compute the next ordinal → `openspec new change` → seed `proposal.md`
-   from the prompt following the `openspec-propose` skill).
-3. **Relay the result.** Report the created `change`, the `proposalPath`, and the next step
-   (`/opsx:spec <change>`). On failure surface `stage` + `reason`.
+   With `--worktree`, it adds a **Worktree** phase before **Scaffold**: creates the git
+   worktree, scaffolds the change inside it, then returns the worktree path.
+3. **Relay the result.** Report the created `change`, `proposalPath`, and next step.
 
 **Guardrails**
 - Faithful seeding only: `proposal.md` must reflect the prompt; do not invent scope.
