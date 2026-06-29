@@ -4,6 +4,35 @@ All notable changes to mzspec are recorded here. The installed release is stampe
 into each project at `.claude/.mzspec-version`; `update.sh` runs the migrations
 between a project's stamped version and the current `VERSION`.
 
+## 0.10.0 — GitHub Projects board lifecycle + split merge-pr into spec/code workflows
+
+**Lifecycle.js now updates GitHub Projects boards** when the change's `github.json`
+carries a `project` config, and `merge-pr` is split into two dedicated workflows.
+
+Added:
+- `setProjectStatus()` in `extensions/task-github/lib/github.js` — dynamically resolves
+  project/field/item IDs via `gh project` CLI and moves the board card to the column
+  mapped to the normalized status (`todo`→Todo, `in-progress`→In Progress,
+  `in-review`→In Review, `done`→Done; all overridable).
+- `projectRef()` in `github-link.js` — project config (org, number, field, options)
+  carried in `github.json` with safe defaults. CLI accepts `--project-org`,
+  `--project-number`, `--project-field`.
+- `projectUpdated` tracking in lifecycle.js `did` result.
+- `--project-org` / `--project-number` args to `propose-gh.js` — passed through to the
+  link command so newly-proposed changes carry the board config.
+- `core/workflows/merge-pr-spec.js` — dedicated workflow for merging `spec/<change>` PRs:
+  preflight, prepare, merge, fire `after-spec-pr-merged` lifecycle. No archive or changelog.
+- `core/workflows/merge-pr-code.js` — dedicated workflow for merging `feat/<change>` PRs:
+  preflight with changelog check, prepare, archive on branch, merge + close issues,
+  fire `after-code-pr-merged` lifecycle.
+- `core/commands/opsx/merge-pr-spec.md`, `merge-pr-code.md` — command docs for the
+  dedicated workflows.
+
+Changed:
+- `core/workflows/merge-pr.js` — simplified to a lightweight **router** that detects
+  the branch prefix (`spec/` vs `feat/`) and delegates to the sub-workflow.
+- `core/commands/opsx/merge-pr.md` — updated to describe the auto-dispatch routing.
+
 ## 0.9.0 — separate `propose` from tasking; GitHub-only `task-github` extension
 
 **Split change-scaffolding from task integration, and replace the 3-source `tasks`
