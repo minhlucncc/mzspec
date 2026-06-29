@@ -48,7 +48,7 @@ async function runAgentHook(event, contextLines) {
       `Context:`,
       ...contextLines,
       `1. If openspec/hooks/on-${event}.agent.md does NOT exist → return { found:false, ran:false }. STOP (normal no-op — most repos have no hook).`,
-      `2. If it exists → READ it and FOLLOW its instructions as your task, using the context above. It may use gh/git/node. It typically reads the backlog ticket from openspec/changes/${change}/proposal.md frontmatter ("ticket:") and updates the board card. Summarise what you actually did in summary; set found:true and ran:true (or ran:false + an errors[] entry if its instructions failed).`,
+      `2. If it exists → READ it and FOLLOW its instructions as your task, using the context above. It may use gh/git/node. It typically reads the linked GitHub issue from openspec/changes/${change}/github.json and updates the issue/board. Summarise what you actually did in summary; set found:true and ran:true (or ran:false + an errors[] entry if its instructions failed).`,
       `Return { found, ran, summary, errors }.`,
     ].join('\n'),
     { schema: HOOK_RESULT, label: `hook:${event}`, phase: 'Hooks', agentType: 'general-purpose' },

@@ -4,6 +4,45 @@ All notable changes to mzspec are recorded here. The installed release is stampe
 into each project at `.claude/.mzspec-version`; `update.sh` runs the migrations
 between a project's stamped version and the current `VERSION`.
 
+## 0.9.0 — separate `propose` from tasking; GitHub-only `task-github` extension
+
+**Split change-scaffolding from task integration, and replace the 3-source `tasks`
+extension with a focused GitHub-only `task-github`.** Scaffolding a change is now a
+first-class, github-agnostic core command; all GitHub coupling lives in one opt-in
+extension that wires the pipeline to GitHub through the existing lifecycle hooks. The
+per-change link + PR refs move to a single `openspec/changes/<change>/github.json` SSOT
+(replacing `.task-link.json` + the `ticket:` proposal frontmatter).
+
+Added:
+- `core/commands/opsx/propose.md` + `core/workflows/propose.js` — `/opsx:propose <what>`,
+  a github-agnostic change scaffolder (compute `cNNNN-<slug>` → `openspec new change` →
+  seed `proposal.md`). No review, no task coupling.
+- `extensions/task-github/` — `/opsx:propose-gh <issue>` (scaffold from a GitHub issue +
+  link + mark in-progress + fire `before-spec`), `/opsx:task-log` (comment the linked
+  issue), `/opsx:task-assign` (assign, defaults `@me`).
+- `extensions/task-github/lib/` — `github.js` (gh adapter + CLI), `github-link.js`
+  (`github.json` SSOT + `link` CLI), `lifecycle.js` (github.json-backed; vendored to the
+  path the core workflows already call), `exec.js`, plus ported unit tests.
+- `docs/task-github.md` — commands + `github.json` schema + lifecycle table.
+
+Changed:
+- `core/workflows/spec-change.js` — dropped the `ticket:` proposal-frontmatter linking
+  (and the `ticket` arg); the `before-spec` lifecycle call stays and no-ops when unlinked.
+- `core/commands/opsx/spec.md` — removed `--ticket`; points to `/opsx:propose-gh` for linking.
+- `spec-pr.js` / `ship-code.js` / `merge-pr.js` — agent-hook prose + merge note now
+  reference `github.json` instead of the old `.task-link.json` / frontmatter ticket.
+- `README.md`, `docs/lifecycle-hooks.md`, `docs/templates.md` — task-github wording.
+- `scripts/update.sh` — no longer auto-installs the retired `tasks` extension.
+
+Removed:
+- `extensions/tasks/` (multi-source local-folder / gh-issues / mello tasking) and
+  `docs/task-sources.md`.
+
+Migration:
+- `migrations/0.9.0-task-github.sh` (run by `update.sh`) + `migrate_0002` in
+  `scripts/migrate.sh` — prune the old vendored task files (content-gated for
+  `lifecycle.js`), and install `task-github` for projects that had `tasks`.
+
 ## 0.8.0 — local worktree ship path + worktree spec-pr
 
 **Added `--local-worktree` ship path and `--worktree` support for spec-pr.** The

@@ -1,23 +1,28 @@
 #!/usr/bin/env node
 'use strict';
 /*
- * lifecycle — wire a backlog ticket to the change as it moves through the pipeline.
+ * lifecycle — wire a GitHub issue to the change as it moves through the pipeline.
  *
  * The ship/spec workflows are agent-driven (their JS never shells out), so this is a
- * deterministic CLI the agents invoke, the same way they call task-sources/cli.js and
- * gate-resolver.js:
+ * deterministic CLI the core workflows invoke at each milestone, the same way they
+ * call openspec.js:
  *
  *   node .claude/workflows/lib/lifecycle.js <event> --change <c> [refs…] [--dry-run] [--json]
  *
- * For each event it reads openspec/changes/<c>/.task-link.json (the SSOT). If the change
- * isn't linked to a ticket it no-ops. Otherwise it COMMENTS the ticket (the same
- * source.comment() path /opsx:task-log uses), advances status, assigns at ship time, and
- * records the spec/code PR + branch + changelog + archive refs back into the link. Then,
- * if openspec/hooks/on-<event> is executable, it runs it with the full context on stdin so
- * a project can extend/notify. EVERY step is best-effort — it must never fail the ship.
+ * For each event it reads openspec/changes/<c>/github.json (the SSOT). If the change
+ * isn't linked to an issue it no-ops. Otherwise it COMMENTS the issue (the same
+ * github.comment() path /opsx:task-log uses), advances status, assigns at code-PR time,
+ * and records the spec/code PR + branch + changelog + archive refs back into the link.
+ * Then, if openspec/hooks/on-<event> is executable, it runs it with the full context on
+ * stdin so a project can extend/notify. EVERY step is best-effort — it must never fail
+ * the ship.
+ *
+ * Installing task-github vendors this file to .claude/workflows/lib/lifecycle.js, which
+ * is exactly where the core workflows already call it — so install == integrated.
  */
 
-const taskLink = require('./task-link.js');
+const link = require('./github-link.js');
+const { Github } = require('./github.js');
 const { runHook } = require('./run-hook.js');
 
 const EVENTS = [
@@ -30,7 +35,7 @@ const EVENTS = [
 ];
 
 // ---- comment templates ---------------------------------------------------------
-// Pure: given the context, return the exact ticket comment. Lines with missing refs
+// Pure: given the context, return the exact issue comment. Lines with missing refs
 // are omitted. Tested directly (and shown by --dry-run) so the payload is asserted
 // without posting anything.
 function renderComment(event, ctx) {
@@ -40,7 +45,7 @@ function renderComment(event, ctx) {
   const lines = [];
   switch (event) {
     case 'before-spec':
-      lines.push(`🟢 **Spec started** for this ticket → change \`${c.change}\`.`);
+      lines.push(`🟢 **Spec started** for this issue → change \`${c.change}\`.`);
       break;
     case 'after-spec-pr-opened':
       lines.push(`📋 **Spec PR opened** — ${spec.url}${spec.number ? ` (#${spec.number})` : ''}`);
@@ -62,7 +67,7 @@ function renderComment(event, ctx) {
       break;
     case 'after-code-pr-merged': {
       lines.push(`🎉 **Merged**${code.mergedSha ? ` (\`${code.mergedSha}\`)` : ''} — \`${c.change}\` shipped${c.archivePath ? ' & archived' : ''}.`);
-      const trace = [c.taskId ? `ticket #${c.taskId}` : '', spec.number ? `spec PR #${spec.number}` : '', code.number ? `code PR #${code.number}` : ''].filter(Boolean);
+      const trace = [c.issueNumber ? `issue #${c.issueNumber}` : '', spec.number ? `spec PR #${spec.number}` : '', code.number ? `code PR #${code.number}` : ''].filter(Boolean);
       if (trace.length) lines.push(`Traceability: ${trace.join(' → ')}`);
       if (c.archivePath) lines.push(`Archive: ${c.archivePath}`);
       break;
@@ -77,7 +82,7 @@ function renderComment(event, ctx) {
 
 // ---- per-event link mutation + status -----------------------------------------
 // Returns { status?: <normalized>, refs: {...} } describing the SSOT change. Status
-// is what to write to the backend; refs are merged into .task-link.json.
+// is what to write to GitHub; refs are merged into github.json.
 function planMutation(event, ctx) {
   const c = ctx || {};
   switch (event) {
@@ -117,16 +122,7 @@ function cleanRefs(refs) {
   return out;
 }
 
-function resolveSourceSafe(config, name, startDir) {
-  try {
-    const { resolveSource } = require('./task-sources/index.js');
-    return resolveSource(config, name, { cwd: startDir });
-  } catch {
-    return null;
-  }
-}
-
-// fireLifecycle(event, ctx, { startDir, config, dryRun, assignee })
+// fireLifecycle(event, ctx, { startDir, dryRun, assignee, source })
 // ctx: { change, date?, branch?, specPr?, codePr?, changelogRef?, archivePath? }
 async function fireLifecycle(event, ctx, opts = {}) {
   const o = opts || {};
@@ -138,49 +134,48 @@ async function fireLifecycle(event, ctx, opts = {}) {
   const change = ctx && ctx.change;
   if (!change) throw new Error('lifecycle requires --change');
 
-  let link = taskLink.read(change, startDir);
-  if (!link) return { ok: true, skipped: 'no-link', event, change, did, errors };
+  const gh = link.read(change, startDir);
+  if (!gh) return { ok: true, skipped: 'no-link', event, change, did, errors };
 
+  const issueNumber = gh.issue && gh.issue.number;
   const mut = planMutation(event, ctx);
   const refs = cleanRefs(mut.refs);
-  const fullCtx = { event, change, date: ctx.date || '', taskId: link.taskId, task: null, link, refs, ...ctx };
+  const fullCtx = { event, change, date: (ctx && ctx.date) || '', issueNumber, link: gh, refs, ...ctx };
 
-  // Resolve the adapter (degrade to link-only if task-sources/config are absent).
-  let resolved = null;
-  if (o.config !== null) {
-    let config = o.config;
-    if (!config) { try { config = require('./load-config.js').loadConfig(startDir); } catch { config = {}; } }
-    resolved = resolveSourceSafe(config, link.source, startDir);
+  // Resolve the GitHub adapter (test-injectable). Degrade to link-only when there is
+  // no bound issue or `gh`/origin is unavailable.
+  let source = o.source !== undefined ? o.source : null;
+  if (source === null && issueNumber && o.source !== null) {
+    try { source = new Github({ startDir }); } catch (e) { errors.push(`github: ${e.message}`); source = null; }
   }
-  const source = resolved && resolved.source;
 
-  // Read the current ticket (for the assignee guard); best-effort.
+  // Read the current issue (for the assignee guard); best-effort.
   let task = null;
-  if (source) { try { task = await source.get(link.taskId); fullCtx.task = task; } catch (e) { errors.push(`get: ${e.message}`); } }
+  if (source && issueNumber) { try { task = await source.get(issueNumber); fullCtx.task = task; } catch (e) { errors.push(`get: ${e.message}`); } }
 
   const comment = renderComment(event, fullCtx);
   const assignWho = o.assignee == null ? '@me' : o.assignee;
   const wantAssign = event === 'after-code-pr-opened' && assignWho && assignWho !== 'none' && !(task && task.assignee);
 
   if (o.dryRun) {
-    return { ok: true, dryRun: true, event, change, taskId: link.taskId, comment, statusTo: mut.status || null, assignTo: wantAssign ? assignWho : null, refs, did, errors };
+    return { ok: true, dryRun: true, event, change, issueNumber, taskId: String(issueNumber || ''), comment, statusTo: mut.status || null, assignTo: wantAssign ? assignWho : null, refs, did, errors };
   }
 
-  if (source) {
-    try { await source.comment(link.taskId, comment); did.commented = true; } catch (e) { errors.push(`comment: ${e.message}`); }
-    if (mut.status) { try { await source.setStatus(link.taskId, mut.status); did.statusSet = true; } catch (e) { errors.push(`setStatus: ${e.message}`); } }
+  if (source && issueNumber) {
+    try { await source.comment(issueNumber, comment); did.commented = true; } catch (e) { errors.push(`comment: ${e.message}`); }
+    if (mut.status) { try { await source.setStatus(issueNumber, mut.status); did.statusSet = true; } catch (e) { errors.push(`setStatus: ${e.message}`); } }
     if (wantAssign && typeof source.setAssignee === 'function') {
-      try { const r = await source.setAssignee(link.taskId, assignWho); did.assigneeSet = true; refs.assignee = r.assignee || assignWho; } catch (e) { errors.push(`setAssignee: ${e.message}`); }
+      try { const r = await source.setAssignee(issueNumber, assignWho); did.assigneeSet = true; refs.assignee = r.assignee || assignWho; } catch (e) { errors.push(`setAssignee: ${e.message}`); }
     }
   } else {
-    errors.push('no-task-source: link-only (comment/status/assignee skipped)');
+    errors.push('no-github-issue: link-only (comment/status/assignee skipped)');
   }
 
-  // Update the SSOT regardless of adapter outcome.
-  if (mut.status) link.status = mut.status;
-  taskLink.setRefs(link, refs);
-  taskLink.appendHistory(link, { at: ctx.date || '', event, ...(mut.status ? { status: mut.status } : {}), ...(refs.specPr || refs.codePr ? { ref: (refs.specPr && refs.specPr.url) || (refs.codePr && refs.codePr.url) || '' } : {}) });
-  try { taskLink.write(change, link, startDir); did.linkWritten = true; } catch (e) { errors.push(`link-write: ${e.message}`); }
+  // Update the SSOT regardless of GitHub outcome.
+  if (mut.status) gh.status = mut.status;
+  link.setRefs(gh, refs);
+  link.appendHistory(gh, { at: (ctx && ctx.date) || '', event, ...(mut.status ? { status: mut.status } : {}), ...(refs.specPr || refs.codePr ? { ref: (refs.specPr && refs.specPr.url) || (refs.codePr && refs.codePr.url) || '' } : {}) });
+  try { link.write(change, gh, startDir); did.linkWritten = true; } catch (e) { errors.push(`link-write: ${e.message}`); }
 
   // Optional project hook (best-effort; non-zero/parse-fail is logged + ignored).
   let extra = null;
@@ -189,7 +184,7 @@ async function fireLifecycle(event, ctx, opts = {}) {
     if (out) { did.hookRan = true; extra = out; }
   } catch (e) { errors.push(`hook on-${event}: ${e.message}`); }
 
-  return { ok: true, event, change, taskId: link.taskId, did, refs, ...(extra ? { extra } : {}), errors };
+  return { ok: true, event, change, issueNumber, taskId: String(issueNumber || ''), did, refs, ...(extra ? { extra } : {}), errors };
 }
 
 // ---- CLI -----------------------------------------------------------------------

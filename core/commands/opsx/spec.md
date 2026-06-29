@@ -25,13 +25,11 @@ a brand-new change, pass a slug (e.g. `/opsx:spec --new github-provider-adapter`
 the workflow picks the next `cNNNN-` number. Pass `--dry-run` to review only (no
 edits — just the findings + report).
 
-Optionally pass `--ticket <url|#N>` to link this change to a backlog ticket. The
-workflow records it as `ticket:` frontmatter in `proposal.md` (the single source of
-truth the lifecycle hooks read) — idempotently, never overwriting an existing value.
-Once recorded, the repo's agent-form hooks (`openspec/hooks/on-<event>.agent.md`)
-fire across the pipeline (spec started → spec PR opened → code PR opened/merged) to
-update the backlog board. You can also add the `ticket:` frontmatter by hand at
-propose time instead.
+To link this change to a GitHub issue (so the pipeline syncs the issue across
+milestones), start it with `/opsx:propose-gh <issue>` from the **task-github**
+extension instead — that writes `openspec/changes/<name>/github.json` (the SSOT the
+lifecycle hooks read). `/opsx:spec` stays task-source-agnostic; the `before-spec`
+lifecycle event it fires no-ops when the change isn't linked.
 
 **Steps**
 
@@ -55,7 +53,7 @@ propose time instead.
    system clock); use `currentDate` from context (`YYYY-MM-DD`):
 
    ```
-   Workflow({ name: 'spec-change', args: { change: '<name>', slug: '<slug|undefined>', date: '<YYYY-MM-DD>', dryRun: <true|false>, maxRevisions: <2>, ticket: '<url|#N|undefined>' } })
+   Workflow({ name: 'spec-change', args: { change: '<name>', slug: '<slug|undefined>', date: '<YYYY-MM-DD>', dryRun: <true|false>, maxRevisions: <2> } })
    ```
 
    - For an **existing** change, pass `change: '<name>'` and omit `slug`.

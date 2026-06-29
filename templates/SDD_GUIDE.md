@@ -20,18 +20,15 @@ self-merges.
 
 ## 1. Task — get something to work on
 
-The backlog is pluggable (configured in `mzspec.config.json` → `taskSources`: a local `.tasks/`
-folder, GitHub Issues, or Mello). Verbs:
+Start straight from a prompt, or — with the **task-github** extension installed
+(`./mzspec install task-github`) — from a GitHub issue:
 
 | Command | What it does |
 |---|---|
-| `/opsx:task-list` | show the backlog (`--source`, `--status`, `--all`) |
-| `/opsx:task-pull` | take the top open task (or `--id`) → create an OpenSpec change `cNNNN-<slug>`, seed `proposal.md` from it, mark the task **in-progress** |
-| `/opsx:task-create` | author a new task from a `--prompt`, the current change (`--from-change`), or working code (`--from-diff`) — local, or push to a remote |
-| `/opsx:task-push` | push a local task to the remote backlog, or sync the change's status back (in-progress → in-review → done) |
-| `/opsx:task-log` | comment on the linked task |
-
-You can also skip the backlog and start straight from a prompt with `/opsx:propose`.
+| `/opsx:propose <what>` | scaffold a change `cNNNN-<slug>` + draft `proposal.md` from a prompt (no task coupling) |
+| `/opsx:propose-gh <issue>` | start from a GitHub issue → scaffold + link (`github.json`) + mark the issue **in-progress** *(task-github)* |
+| `/opsx:task-log --text "…"` | comment on the linked GitHub issue *(task-github)* |
+| `/opsx:task-assign [<login>]` | assign the linked issue (defaults `@me`) *(task-github)* |
 
 ## 2. Spec — define the contract before code
 
@@ -56,7 +53,7 @@ You can also skip the backlog and start straight from a prompt with `/opsx:propo
 
 - `openspec/specs/` — the canonical capability specs (the contract).
 - `openspec/changes/<change>/` — in-progress change: `proposal.md`, `design.md`, `tasks.md`, delta
-  `specs/`, `evidence/`, and `.task-link.json` (the link back to the backlog task).
+  `specs/`, `evidence/`, and (with task-github) `github.json` (the link back to the GitHub issue).
 - `openspec/changes/archive/` — shipped changes.
 - `.handoff/<change>/` — the test-first execution plan (git-ignored).
 - `mzspec.config.json` — this project's config: toolchains + quality **gates**, `taskSources`, and
@@ -71,16 +68,15 @@ plus any project gates — and each must pass before the PR. See `.claude/mzspec
 ## Quick start
 
 ```
-/opsx:task-list                 # what's in the backlog?
-/opsx:task-pull                 # take the top one → a new change
+/opsx:propose <what>            # scaffold a change from a prompt
+                                # (or /opsx:propose-gh <issue> from a GitHub issue)
 /opsx:spec <change>             # review the spec
 /opsx:spec-pr <change>          # open the spec PR  → (human merges)
 /opsx:ship-plan <change>        # plan the work-units
 /opsx:ship-code <change>        # implement + open the code PR → (human merges)
-/opsx:task-push --change <c>    # report status back to the backlog
 /opsx:archive <change>
 ```
 
-Full docs: [task sources](https://github.com/minhlucncc/mzspec/blob/main/docs/task-sources.md) ·
+Full docs: [task-github](https://github.com/minhlucncc/mzspec/blob/main/docs/task-github.md) ·
 [architecture](https://github.com/minhlucncc/mzspec/blob/main/docs/architecture.md) ·
 [customize](https://github.com/minhlucncc/mzspec/blob/main/docs/customize.md).

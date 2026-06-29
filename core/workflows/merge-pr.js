@@ -379,7 +379,7 @@ if (archived) {
 }
 if (lcMergedEvent) {
   if (lc.commented) postMergeNotes.push(`- 🪝 Lifecycle \`${lcMergedEvent}\` fired — linked ticket commented${lc.statusSet ? ' + status advanced' : ''}.`)
-  else if (lc.skipped === 'no-link') postMergeNotes.push(`- 🪝 Lifecycle \`${lcMergedEvent}\`: change is not linked to a ticket (no \`.task-link.json\`) — no comment. Link it via \`/opsx:task-pull\` / \`/opsx:task-push\` to enable.`)
+  else if (lc.skipped === 'no-link') postMergeNotes.push(`- 🪝 Lifecycle \`${lcMergedEvent}\`: change is not linked to a GitHub issue (no \`github.json\`) — no comment. Link it via \`/opsx:propose-gh\` to enable.`)
   else if (lc.skipped) postMergeNotes.push(`- 🪝 Lifecycle \`${lcMergedEvent}\`: skipped (${lc.skipped}).`)
   if (hooks.agentHook && hooks.agentHook.ran) postMergeNotes.push(`- 🤖 Agent hook \`on-${lcMergedEvent}.agent.md\`: ${hooks.agentHook.summary || 'ran'}.`)
   if (hooks.errors && hooks.errors.length) postMergeNotes.push(`- ⚠️ Hook errors (non-fatal): ${hooks.errors.join('; ')}`)
