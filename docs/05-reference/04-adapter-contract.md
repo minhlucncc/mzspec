@@ -6,18 +6,21 @@ integration** (adapters that bridge external backlogs). An adapter fetches from 
 `TASK.md` file, and hands off to `propose` — which does not know or care where the text
 came from.
 
-```
-  ┌──────────────┐     ┌──────────────────┐
-  │   Adapter    │     │  propose (core)  │
-  │  (source-    │────►│                  │
-  │   specific)  │     │  "read TASK.md   │
-  │              │     │   and scaffold"  │
-  │  1. fetch    │     │                  │
-  │  2. write    │     │  cNNNN-slug      │
-  │     TASK.md  │     │  proposal.md     │
-  │  3. call     │     │  (from TASK.md)  │
-  │     propose  │     │                  │
-  └──────────────┘     └──────────────────┘
+```mermaid
+flowchart LR
+    subgraph Adapter["Adapter (source-specific)"]
+        direction TB
+        F1["1. fetch"]
+        F2["2. write TASK.md"]
+        F3["3. call propose"]
+    end
+    subgraph Core["propose (core)"]
+        direction TB
+        R1["read TASK.md and scaffold"]
+        R2["cNNNN-slug"]
+        R3["proposal.md (from TASK.md)"]
+    end
+    Adapter --> Core
 ```
 
 ## 1. The propose interface (stable core)

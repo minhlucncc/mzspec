@@ -7,33 +7,27 @@ monitoring progress, and reporting results back to the human.
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  Human (gives instructions, responds to questions)                │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │ (via session input / Mello / CLI)
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  mework Daemon                                                    │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │  Orchestrator Sandbox (interactive session)                 │  │
-│  │  ┌──────────────────┐    MCP stdio    ┌────────────────┐   │  │
-│  │  │  Claude Code      │◄──────────────►│  mework-mcp     │   │  │
-│  │  │  (orchestrator)   │                │  (MCP server)   │   │  │
-│  │  └──────────────────┘                └────────────────┘   │  │
-│  │  ┌──────────────────┐    MCP stdio                        │  │
-│  │  │  Claude Code      │◄──── gh mcp ────► GitHub API       │  │
-│  │  │  (orchestrator)   │                                     │  │
-│  │  └──────────────────┘                                     │  │
-│  │                                                           │  │
-│  │  Workspace: /path/to/project + .orchestrator/state.json   │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
-│  │  Impl Agent  │  │  Audit Agent │  │ Ideation Ag. │  (child   │
-│  │  (sandbox)   │  │  (sandbox)   │  │  (sandbox)   │   sand-   │
-│  └──────────────┘  └──────────────┘  └──────────────┘   boxes)  │
-└──────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Human["Human<br/>(gives instructions, responds to questions)"] -->|session input / Mello / CLI| Daemon
+
+    subgraph Daemon["mework Daemon"]
+        direction TB
+        subgraph Sandbox["Orchestrator Sandbox (interactive session)"]
+            direction TB
+            CC1["Claude Code<br/>(orchestrator)"] <-->|MCP stdio| MCP["mework-mcp<br/>(MCP server)"]
+            CC2["Claude Code<br/>(orchestrator)"] <-->|gh mcp| GH["GitHub API"]
+            WS["Workspace: /path/to/project<br/>+ .orchestrator/state.json"]
+        end
+
+        subgraph Children["Child sandboxes"]
+            Impl["Impl Agent<br/>(sandbox)"]
+            Audit["Audit Agent<br/>(sandbox)"]
+            Idea["Ideation Ag.<br/>(sandbox)"]
+        end
+
+        MCP --> Children
+    end
 ```
 
 ## Interaction Flow

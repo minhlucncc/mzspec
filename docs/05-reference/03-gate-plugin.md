@@ -13,7 +13,7 @@ A gate is any executable that:
 - writes diagnostics to **stderr**, a terse `ok:`/`fail:` line to stdout,
 - is **deterministic and side-effect-free**.
 
-Full text: [`core/gates/CONTRACT.md`](../core/gates/CONTRACT.md).
+Full text: [`core/gates/CONTRACT.md`](../../core/gates/CONTRACT.md).
 
 ## Registering a gate
 
@@ -54,5 +54,5 @@ each must exit 0 (with a bounded repair loop on failure).
 
 ## Starter gates
 
-Example gate scripts live in [`core/gates/starters/`](../core/gates/starters/) — reference
+Example gate scripts live in [`core/gates/starters/`](../../core/gates/starters/) — reference
 copies to adapt. Your real gates live in your repo, not in mzspec.

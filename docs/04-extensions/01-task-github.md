@@ -3,11 +3,11 @@
 > The **task-github** extension (`extensions/task-github/`) makes a GitHub issue the backlog
 > item behind an OpenSpec change and keeps it in sync as the change moves spec → ship → merge.
 > It is the reference implementation of the **adapter pattern** documented in
-> [adapter-contract.md](adapter-contract.md): it converts a GitHub issue into a local
+> [adapter contract](../05-reference/04-adapter-contract.md): it converts a GitHub issue into a local
 > `TASK.md` file and delegates scaffolding to the core `/opsx:propose`, which knows
 > nothing about GitHub.
-> For skill-injection hooks see [hooks.md](hooks.md); for the lifecycle event contract see
-> [lifecycle-hooks.md](lifecycle-hooks.md).
+> For skill-injection hooks see [hooks.md](../05-reference/01-hooks.md); for the lifecycle event contract see
+> [lifecycle-hooks.md](../05-reference/02-lifecycle-hooks.md).
 
 GitHub is the single task API. Install the extension and the pipeline is integrated — no
 `mzspec.config.json` `taskSources`, no adapter registry. The repo is inferred from your

@@ -88,3 +88,11 @@ bash scripts/migrate.sh --dest /path/to/project          # or --dry-run to previ
    `mzspec.config.json` — both optional.
 3. Install extensions: `./mzspec install agent-skills`
 4. Drive the pipeline: `/opsx:spec` → `/opsx:spec-pr` → `/opsx:ship-plan` → `/opsx:ship-code`.
+
+## Next steps
+
+1. **Run `./mzspec docs`** to see the full workflow overview with the pipeline diagram.
+2. **Start your first change**: `./mzspec propose "what to build"` (or `/opsx:propose` in agent mode).
+3. **Learn the architecture**: [Architecture](../03-guides/01-architecture.md) explains the two-PR state machine.
+4. **Customize**: [Configuration reference](../03-guides/01-customize.md) for toolchains, gates, and tags.
+5. **Add extensions**: [task-github](../04-extensions/01-task-github.md) for GitHub-backed tasking, [Orchestrator](../04-extensions/02-orchestrator.md) for autonomous SDLC.

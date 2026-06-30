@@ -6,19 +6,15 @@ mzspec uses a **deterministic tag system** to load only the skills and hooks rel
 
 Every task and work-unit carries **tags** (e.g., `ui`, `backend`, `api`, `db`). Every skill and hook **declares which tags it applies to** in its YAML frontmatter. The tag resolver matches them at runtime — only relevant guidance reaches the agent.
 
-```
-Task/Unit (tags: [ui, auth])
-         │
-         ▼
-   Tag Resolver ──→ Matches against:
-         │              ├── SKILL.md frontmatter (tags field)
-         │              └── Hook .prompt.md frontmatter (tags field)
-         │
-         ▼
-   Only matching skills + hooks loaded
-   └─ "ui" tag → ui-design skill loaded
-   └─ "auth" tag → security-and-hardening skill loaded
-   └─ No "backend" tag → backend skills skipped
+```mermaid
+flowchart LR
+    Unit["Task/Unit<br/>(tags: ui, auth)"] --> Resolver["Tag Resolver"]
+    Resolver --> Skills["SKILL.md frontmatter<br/>(tags field)"]
+    Resolver --> Hooks["Hook .prompt.md frontmatter<br/>(tags field)"]
+    Resolver --> Result["Only matching skills + hooks loaded"]
+    Result --> UI["ui tag → ui-design skill loaded"]
+    Result --> Auth["auth tag → security-and-hardening skill loaded"]
+    Result --> NoBack["No backend tag → backend skills skipped"]
 ```
 
 ## Tag taxonomy
@@ -100,6 +96,11 @@ Tags can also be **inferred automatically** from file paths via `mzspec.config.j
 The tag resolver discovers all SKILL.md files in `.claude/skills/`, `openspec/skills/`, and extension skill directories — no registration needed.
 
 ## What this replaces
+
+---
+
+→ **Next:** [Configuration reference](../03-guides/01-customize.md) to configure custom tag→path mappings and
+add project-specific tags.
 
 | Before | After |
 |--------|-------|

@@ -24,7 +24,7 @@ implemented natively (no external CLI required).
 > skills and hooks declare which tags they apply to, and the **tag resolver** loads only the
 > relevant guidance per work-unit — no conditional text, no irrelevant prompts. Zero-config for
 > existing projects (tags are optional; un-tagged units get universal skills as before).
-> → [Tag system docs](docs/tag-system.md) · `./mzspec docs` for the full workflow overview
+> → [Tag system docs](docs/03-guides/02-tag-system.md) · `./mzspec docs` for the full workflow overview
 
 ## How a change flows
 
@@ -95,7 +95,7 @@ required. Gates are **zero-config**: auto-discovered from your repo's own manife
 (`pyproject.toml` / `go.mod` / `pnpm-workspace.yaml`), so no `mzspec.config.json` is needed.
 
 The installer is idempotent — re-run anytime; `--force` overwrites vendored files and `--upgrade`
-refreshes them and runs pending migrations. See [docs/install.md](docs/install.md).
+refreshes them and runs pending migrations. See [docs/01-getting-started/01-install.md](docs/01-getting-started/01-install.md).
 
 ## Extension management
 
@@ -135,16 +135,19 @@ Now drive the pipeline:
 
 ## Docs
 
-- [Install](docs/install.md) — installer flags and what lands where
-- [Architecture](docs/architecture.md) — the OpenSpec seam and the two-PR state machine
-- [Tag system](docs/tag-system.md) — tag-driven skill/hook routing for adaptive tasking
-- [Customize](docs/customize.md) — the optional `mzspec.config.json` reference
-- [Workflow hooks](docs/hooks.md) — the `resolve-gates` / task-source hook contract
-- [Lifecycle hooks](docs/lifecycle-hooks.md) — event-driven board & ticket sync
-- [task-github](docs/task-github.md) — GitHub-backed tasking (`propose-gh` / `task-log` / `task-assign`)
-- [Gate plugins](docs/gate-plugin.md) — the gate contract and starters
-- [Templates](docs/templates.md) — planning playbooks and convention guides
-- [Commit convention](docs/commit-convention.md) — Conventional Commits for mzspec projects
+The documentation is organized as a learning path from getting started to advanced:
+
+→ **[Start here: docs/README.md](docs/README.md)** — learning path index
+
+Quick links by tier:
+
+| Tier | Guides |
+|------|--------|
+| Getting Started | [Install](docs/01-getting-started/01-install.md) |
+| Concepts | [SDD](docs/02-concepts/01-sdd-intro.md), [Claude Code workflow](docs/02-concepts/02-claude-code-workflow.md), [Enterprise](docs/02-concepts/03-enterprise-sdd.md), [Future](docs/02-concepts/04-future-agent-sdlc.md) |
+| Guides | [Architecture](docs/03-guides/01-architecture.md), [Tag system](docs/03-guides/02-tag-system.md), [Config](docs/03-guides/01-customize.md), [Templates](docs/03-guides/02-templates.md), [Commit conventions](docs/03-guides/03-commit-convention.md) |
+| Extensions | [task-github](docs/04-extensions/01-task-github.md), [Orchestrator](docs/04-extensions/02-orchestrator.md) |
+| Reference | [Hooks](docs/05-reference/01-hooks.md), [Lifecycle](docs/05-reference/02-lifecycle-hooks.md), [Gates](docs/05-reference/03-gate-plugin.md), [Adapters](docs/05-reference/04-adapter-contract.md), [Mework](docs/05-reference/05-mework-integration.md) |
 
 ## Why mzspec?
 
@@ -183,7 +186,7 @@ unit automatically gets the `ui-design` skill and UX pattern hooks.
 - **Extensible** — projects define custom tags and create matching `SKILL.md` files
 - **Backward compatible** — un-tagged units get universal methodology skills as before
 
-→ [Full tag system documentation](docs/tag-system.md)
+→ [Full tag system documentation](docs/03-guides/02-tag-system.md)
 
 ### Extensions
 
@@ -215,7 +218,7 @@ The gate-resolver turns a diff into a gate plan through a 3-step chain: an execu
 pin, optional, kept for back-compat) → **zero-config auto-discovery** from your manifests
 (`lib/discover.js`, the default). The ship pipeline is a state machine where the spec PR (contract)
 merges before the code PR (implementation), and a human always performs the merge. Architecture:
-[docs/architecture.md](docs/architecture.md) · [docs/customize.md](docs/customize.md).
+[docs/03-guides/01-architecture.md](docs/03-guides/01-architecture.md) · [docs/03-guides/01-customize.md](docs/03-guides/01-customize.md).
 
 ## Updating
 

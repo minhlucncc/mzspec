@@ -13,7 +13,7 @@ core defers to. Two flavors, same `<name>/TEMPLATE.md` shape:
   This is how mzspec keeps the shipped skills generic while each project carries its own conventions.
 
 Templates are the front-of-pipeline complement to **gates**: gates answer *"given a diff, what must
-pass?"* ([gate-plugin.md](gate-plugin.md)); templates answer *"how does THIS project plan and
+pass?"* ([../05-reference/03-gate-plugin.md](../05-reference/03-gate-plugin.md)); templates answer *"how does THIS project plan and
 practice this kind of work?"*.
 
 ## A template works like a skill
@@ -119,4 +119,4 @@ bash scripts/mzspec install agent-skills
 ```
 
 This installs the starter playbooks into `openspec/templates/`. To create your own:
-`/opsx:template-create`. Full contract: [`extensions/templates/CONTRACT.md`](../extensions/templates/CONTRACT.md).
+`/opsx:template-create`. .

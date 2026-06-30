@@ -1,8 +1,8 @@
 # Lifecycle hooks — wiring a change to a backlog board
 > Lifecycle hooks fire backlog updates at each pipeline stage.
 > The built-in GitHub sync ships in the **task-github extension** (`extensions/task-github/`);
-> see [task-github.md](task-github.md). This page documents the generic hook seam for any
-> *other* board. For skill injection hooks, see [hooks.md](hooks.md).
+> see [task-github.md](../04-extensions/01-task-github.md). This page documents the generic hook seam for any
+> *other* board. For skill injection hooks, see [hooks.md](01-hooks.md).
 
 mzspec fires a **lifecycle event** at each stage of the spec→ship pipeline. A project can react to
 those events to keep an external backlog (a GitHub Projects board, an issue tracker, Slack, …) in

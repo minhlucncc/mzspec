@@ -3,6 +3,9 @@
 Everything project-specific is in **`mzspec.config.json`** at your repo root.
 You should not need to edit any vendored `.claude/` file.
 
+> **Before reading:** You should understand the [architecture](01-architecture.md) and
+> [tag system](02-tag-system.md) — this doc builds on those concepts.
+
 ## Toolchains
 
 Declare one entry per toolchain. Each has the package `dirs` it owns and the `gates` to run on a
@@ -58,7 +61,7 @@ Leave `gates: []` to disable.
 
 ## Custom gates (your gate scripts)
 
-See [gate-plugin.md](gate-plugin.md). Drop scripts under `gatesDir` and register them in
+See [gate-plugin.md](../05-reference/03-gate-plugin.md). Drop scripts under `gatesDir` and register them in
 `customGates` with a `when` predicate.
 
 ## Invariants
@@ -86,8 +89,8 @@ explicit annotations. Define path prefixes for each tag category:
 
 When a unit's code deliverables include files under `apps/portal/`, the `ui` tag is automatically
 inferred — no manual annotation needed. Tags drive which skills and hooks are loaded during
-implementation (see [tag-system.md](tag-system.md) for the full system).
+implementation (see [tag-system.md](02-tag-system.md) for the full system).
 
 ## Reference
 
-See [gate-plugin.md](gate-plugin.md) for gate configuration examples.
+See [gate-plugin.md](../05-reference/03-gate-plugin.md) for gate configuration examples.
