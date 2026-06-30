@@ -1,6 +1,7 @@
 ---
 name: code-review-and-quality
 description: Conducts multi-axis code review (MeKnow-adapted, polyglot). Use before merging any change. Use when reviewing code written by yourself, another agent, or a human across Python/Go/TypeScript. Use when you need to assess code quality across correctness, readability, architecture, security, and performance before it enters main. Complements the built-in `/code-review` and `/security-review` slash commands and the `/opsx:address-review` PR-comment loop.
+tags: []
 ---
 
 # Code Review and Quality

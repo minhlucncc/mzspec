@@ -1,6 +1,7 @@
 ---
 name: security-and-hardening
 description: Hardens code against vulnerabilities (MeKnow-adapted, polyglot). Use when handling untrusted documents or webhook payloads, working with tenant isolation or server-side ACL in retrieve_kb, encrypting/decrypting provider credentials, the service JWT between backend and workers, or any answer-producing path. Use when building any feature that accepts untrusted data, manages tokens, or crosses a tenant boundary. Maps the OWASP Top 10 onto this repo's concrete controls (multi-tenant isolation + ACL-cohort cache keys, server-side ACL in retrieve_kb, Fernet credential encryption, HS256 service JWT, HMAC-signed inbound webhooks, citations-mandatory refusal, the compression invariant against KB prompt-injection).
+tags: [security]
 ---
 
 # Security and Hardening

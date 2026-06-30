@@ -20,11 +20,11 @@ implemented natively (no external CLI required).
 ```
 
 > [!TIP]
-> **v0.11.0** — unified `./mzspec` CLI for all operations (`install`, `ext`, `spec`, `docs`, etc.),
-> gates are **zero-config** (auto-discovered from your repo's own manifests), the
-> pipeline fires **lifecycle hooks** at every milestone for board/ticket sync, OpenSpec is now
-> **native** (no external CLI dependency), and shipping can run in an isolated **git worktree**.
-> → `./mzspec docs` for the full workflow overview · [How it works](docs/architecture.md)
+> **v0.12.0** — **tag-driven skill routing**: tasks carry tags (`ui`, `backend`, `api`, `db`, ...),
+> skills and hooks declare which tags they apply to, and the **tag resolver** loads only the
+> relevant guidance per work-unit — no conditional text, no irrelevant prompts. Zero-config for
+> existing projects (tags are optional; un-tagged units get universal skills as before).
+> → [Tag system docs](docs/tag-system.md) · `./mzspec docs` for the full workflow overview
 
 ## How a change flows
 
@@ -137,6 +137,7 @@ Now drive the pipeline:
 
 - [Install](docs/install.md) — installer flags and what lands where
 - [Architecture](docs/architecture.md) — the OpenSpec seam and the two-PR state machine
+- [Tag system](docs/tag-system.md) — tag-driven skill/hook routing for adaptive tasking
 - [Customize](docs/customize.md) — the optional `mzspec.config.json` reference
 - [Workflow hooks](docs/hooks.md) — the `resolve-gates` / task-source hook contract
 - [Lifecycle hooks](docs/lifecycle-hooks.md) — event-driven board & ticket sync
@@ -168,6 +169,21 @@ human, on any project, with one install.
 - **Two-PR human-merge gate** — a spec PR (contract) merges first, then a code PR implements it;
   the human always merges, the agent never commits to `main`. Shipping can run in an isolated git
   worktree to keep your working tree clean.
+
+### Smart tagging (skill routing)
+
+Every task and work-unit carries **tags** (`ui`, `backend`, `api`, `db`, `auth`, ...) that declare
+what kind of work it is. Skills and hooks declare which tags they apply to in YAML frontmatter.
+The **tag resolver** matches them at runtime — a backend unit never sees UI guidance, and a UI
+unit automatically gets the `ui-design` skill and UX pattern hooks.
+
+- **Tag tasks** in `tasks.md`: `## Task [1]: Login form  (tags: ui, auth)`
+- **Tags drive skill loading** — no conditional "if UI" text in prompts
+- **Tags auto-inferred** from file paths via `mzspec.config.json` → `tags.categories`
+- **Extensible** — projects define custom tags and create matching `SKILL.md` files
+- **Backward compatible** — un-tagged units get universal methodology skills as before
+
+→ [Full tag system documentation](docs/tag-system.md)
 
 ### Extensions
 

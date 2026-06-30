@@ -1,6 +1,7 @@
 ---
 name: documentation-and-adrs
 description: Records decisions and documentation, adapted for the Mezon Mentor Bot ("MeKnow") platform. Use when making architectural decisions, changing the API contract (OpenAPI) or the BotPolicy/MCP boundary, shipping features, or recording context future engineers and agents need. Notes how OpenSpec design.md files serve as lightweight ADRs, that former RFCs live in docs/design/, and where docs/ lives.
+tags: [docs]
 ---
 
 # Documentation and ADRs

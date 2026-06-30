@@ -1,6 +1,7 @@
 ---
 name: spec-driven-development
 description: Creates specs before coding (MeKnow-adapted onto OpenSpec). Use when starting a new feature or significant change and no OpenSpec change exists yet. Use when requirements are unclear, ambiguous, or only exist as a vague idea. Maps SPECIFY/PLAN/TASKS/IMPLEMENT onto /opsx:propose, design.md, tasks.md, and /opsx:ship (ship-plan → ship-code) — former RFCs now live as capability specs (rationale in docs/design/); do not invent a competing PRD file.
+tags: []
 ---
 
 # Spec-Driven Development

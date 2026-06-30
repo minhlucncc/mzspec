@@ -1,6 +1,7 @@
 ---
 name: git-workflow-and-versioning
 description: Structures git workflow practices, adapted for the Mezon Mentor Bot ("MeKnow") platform — the platform/ git submodule of funix-mezon-bot. Use when making any code change. Use when committing, branching, resolving conflicts, writing Conventional Commit messages, opening PRs via gh, bumping the superproject gitlink, maintaining CHANGELOG.md, or organizing work across parallel streams.
+tags: [infra]
 ---
 
 # Git Workflow and Versioning

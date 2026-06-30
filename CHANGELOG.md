@@ -4,6 +4,53 @@ All notable changes to mzspec are recorded here. The installed release is stampe
 into each project at `.claude/.mzspec-version`; `update.sh` runs the migrations
 between a project's stamped version and the current `VERSION`.
 
+## 0.12.0 — Tag-driven skill routing: deterministic task classification
+
+**Replaced static conditional text in hooks with a deterministic tag system for skill
+and hook loading.** Tasks and work-units carry tags (`ui`, `backend`, `api`, `db`, ...)
+that classify the type of work. Skills and hooks declare which tags they apply to in
+YAML frontmatter. The `tag-resolver.js` module matches them at runtime — a backend unit
+never sees UI guidance, and a UI unit automatically gets the `ui-design` skill.
+
+**New files:**
+- `lib/tag-resolver.js` — deterministic tag→skill/hook resolver with `resolveSkills()`,
+  `resolveHooks()`, `classifyTags()`, and `tagsMatch()` functions
+- `core/skills/tag-system/SKILL.md` — full documentation of the tag taxonomy, tagging
+  conventions, and resolver behavior
+
+**Skills tagged (16 SKILL.md files):**
+- `ui-design` → `tags: [ui, frontend]`
+- `ux-pattern-audit` → `tags: [ui, design]`
+- `test-driven-development` → `tags: [test]`
+- `security-and-hardening` → `tags: [security]`
+- `documentation-and-adrs` → `tags: [docs]`
+- `git-workflow-and-versioning` → `tags: [infra]`
+- `ci-cd-and-automation` → `tags: [infra]`
+- All others → `tags: []` (universal — always loaded)
+
+**Hooks tagged (9 `.prompt.md` files):**
+- Universal hooks (`tags: []`): `on-implement`, `on-test`, `on-plan`, `on-review`,
+  `on-verify`, `on-address-review`
+- Tagged hooks (`tags: [infra]`): `on-pr`, `on-archive`, `on-local-merge`
+- All conditional "if UI" text removed — tag system handles routing automatically
+
+**Workflow changes:**
+- `ship-plan.js` — preflight parses `(tags: ...)` from task lines; `plan.json` units
+  carry tags inherited from covered tasks
+- `ship-code.js` — TAGS context injected per unit; agents directed to tag-system skill
+  for tag→skill mapping; `uiPath` conditionals removed from CONTEXT
+- `spec-change.js` — UX Pattern Consistency axis (`ux-consistency`) only added when
+  change has `ui.md` (`pre.uiPath ? [...BASE_AXES, UX_AXIS] : BASE_AXES`)
+
+**Configuration:**
+- `mzspec.config.template.json` — new optional `tags.categories` section for automatic
+  tag inference from file paths
+
+**Documentation:**
+- `docs/tag-system.md` — full tag system reference
+- `docs/customize.md` — new "Tags (smart skill routing)" section
+- `core/skills/openspec-propose/SKILL.md` — new "Task tagging" section with guidelines
+
 ## 0.11.0 — UI/UX design layer: ui.md artifact + ui-design skill
 
 **Added a dedicated UI/visual design layer to the pipeline.** A new `ui.md` artifact

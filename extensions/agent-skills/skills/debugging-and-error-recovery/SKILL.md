@@ -1,6 +1,7 @@
 ---
 name: debugging-and-error-recovery
 description: Guides systematic root-cause debugging (Mezon Mentor Bot "MeKnow" platform). Use when a toolchain gate fails (`uv ... pytest`, `pyright`, `go test -race`, `pnpm test`), a build breaks, retrieval/runtime behavior doesn't match expectations, a citation is missing or a tenant boundary leaks, or you hit any unexpected error. Use when you need a systematic approach to finding and fixing the root cause rather than guessing.
+tags: []
 ---
 
 # Debugging and Error Recovery

@@ -58,15 +58,19 @@ async function runAgentHook(event, contextLines) {
   return r
 }
 
-// ---------------------------------------------------------------- the six review axes
-const AXES = [
+// ---------------------------------------------------------------- the review axes
+const BASE_AXES = [
   { key: 'structure', title: 'Structure & validity', brief: 'node .claude/workflows/lib/openspec.js validate --strict passes; Purpose + Requirements; SHALL/MUST in the body line; >=1 Scenario each; delta uses ADDED/MODIFIED/REMOVED/RENAMED with the FULL requirement on MODIFY; MODIFIED/REMOVED names exist in the baseline spec. Structural failures are Blockers.' },
   { key: 'clarity', title: 'Clarity & KISS', brief: 'one requirement = one behavior; no "and...and..." packing across distinct concerns; plain-language bodies; specific requirement names.' },
   { key: 'testability', title: 'Testability', brief: 'every scenario decidable with concrete literals and a definite WHEN/THEN; NO soft MAY / "to the extent of" in an intended-behavior THEN; edge/negative scenarios where they matter.' },
   { key: 'minimality', title: 'Minimality & YAGNI', brief: 'normative requirements describe only in-scope/built behavior; future options belong in design.md, not requirements; spec behavior, not process; no requirement that changes no test.' },
   { key: 'consistency', title: 'Consistency & DRY', brief: 'each behavior defined once (reference, do not restate); canonical glossary terms; consistent with the CLAUDE.md invariants (a contradiction is a Blocker).' },
-  { key: 'completeness', title: 'Completeness (not partials)', brief: 'every proposal claim -> a requirement; every requirement -> >=1 scenario AND covering task(s) in tasks.md; every task -> a requirement; design.md records the non-trivial decisions; ui.md records UI/visual decisions for user-facing changes.' },
+  { key: 'completeness', title: 'Completeness (not partials)', brief: 'every proposal claim -> a requirement; every requirement -> >=1 scenario AND covering task(s) in tasks.md; every task -> a requirement; design.md records the non-trivial decisions; ui.md records UI/visual decisions for user-facing changes with a Design Language Reference citing project design docs (or noting their absence) and UX patterns referenced.' },
 ]
+// UX consistency axis is only added when the change has UI work (ui.md exists)
+// This avoids running an irrelevant axis on backend-only changes
+const UX_AXIS = { key: 'ux-consistency', title: 'UX Pattern Consistency', brief: 'for UI changes with a ui.md: reads the Design Language Reference and cross-checks against the project\'s existing UX patterns (DESIGN.md, design skills, openspec/patterns/ux-patterns.md, or codebase conventions); visual concept alignment is coherent; abstract business flow maps entry→steps→completion→next; ui.md reads as a final design handoff. If no ui.md exists, report that UX consistency is N/A.' }
+// AXES is populated after preflight once we know if UI work exists
 
 // ---------------------------------------------------------------- schemas
 const PREFLIGHT = {
@@ -191,6 +195,8 @@ if (!dryRun) {
 }
 
 // ---------------------------------------------------------------- Phase 2: Cross-validate (parallel critics)
+// Conditionally add UX consistency axis when change has UI work
+const AXES = pre.uiPath ? [...BASE_AXES, UX_AXIS] : BASE_AXES
 phase('Cross-validate')
 const reviews = (await parallel(
   AXES.map((ax) => () =>
@@ -202,7 +208,7 @@ const reviews = (await parallel(
         CONTEXT,
         `Axis focus: ${ax.brief}`,
         ax.key === 'structure' ? `Run: node .claude/workflows/lib/openspec.js validate "${change}" --strict --no-interactive — a failure is a Blocker; quote the error.` : '',
-        ax.key === 'consistency' || ax.key === 'completeness' ? `You MAY read the baseline openspec/specs/<capability>/spec.md and CLAUDE.md to cross-check.` : '',
+        ax.key === 'consistency' || ax.key === 'completeness' || ax.key === 'ux-consistency' ? `You MAY read the baseline openspec/specs/<capability>/spec.md, openspec/patterns/ux-patterns.md, DESIGN.md, and CLAUDE.md to cross-check.` : '',
         `Return findings strictly scoped to THIS axis. If clean, return an empty findings array with a one-line summary.`,
       ].filter(Boolean).join('\n'),
       { schema: REVIEW, label: `critic:${ax.key}`, phase: 'Cross-validate', agentType: 'general-purpose' },

@@ -1,6 +1,7 @@
 ---
 name: using-agent-skills
 description: Discovers and invokes agent skills (MeKnow-adapted). Use when starting a session or when you need to discover which skill applies to the current task. This is the meta-skill that governs how all other skills are discovered and invoked, and it routes work onto this repo's mzspec-driven OpenSpec lifecycle (/opsx:propose → /opsx:spec → /opsx:spec-pr → /opsx:ship [ship-plan → ship-code] → /opsx:address-review → /opsx:archive).
+tags: []
 ---
 
 # Using Agent Skills

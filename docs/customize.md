@@ -66,6 +66,28 @@ See [gate-plugin.md](gate-plugin.md). Drop scripts under `gatesDir` and register
 List your project's hard-invariants under `invariants`. The `security-and-hardening` and
 `code-review-and-quality` skills read these instead of the MeKnow examples they ship with.
 
+## Tags (smart skill routing)
+
+The tag system maps file paths to tags, enabling automatic tag inference when tasks don't have
+explicit annotations. Define path prefixes for each tag category:
+
+```jsonc
+"tags": {
+  "categories": {
+    "ui":      { "paths": ["apps/portal/", "apps/web/", "src/components/"] },
+    "backend": { "paths": ["packages/", "apps/api/", "src/lib/"] },
+    "db":      { "paths": ["migrations/", "prisma/", "src/db/"] },
+    "docs":    { "paths": ["docs/", "wiki/"] },
+    "infra":   { "paths": [".github/", "infra/", "ci/"] },
+    "test":    { "paths": ["tests/", "__tests__/", "spec/"] }
+  }
+}
+```
+
+When a unit's code deliverables include files under `apps/portal/`, the `ui` tag is automatically
+inferred — no manual annotation needed. Tags drive which skills and hooks are loaded during
+implementation (see [tag-system.md](tag-system.md) for the full system).
+
 ## Reference
 
-See [docs/gate-plugin.md](gate-plugin.md) for gate configuration examples.
+See [gate-plugin.md](gate-plugin.md) for gate configuration examples.

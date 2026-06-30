@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 520" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <!-- Dot grid pattern -->
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="0.8" fill="#fff" opacity="0.04"/>
+    </pattern>
+
+    <!-- Glow filters -->
+    <filter id="glow-blue" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="glow-amber" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="glow-emerald" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Radial glows for node backdrops -->
+    <radialGradient id="rg-blue" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rg-amber" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rg-emerald" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#34d399" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#34d399" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rg-purple" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Arrowhead markers -->
+    <marker id="arr" viewBox="0 0 10 8" refX="8" refY="4" markerWidth="5" markerHeight="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8" fill="none" stroke="#4a5568" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arr-g" viewBox="0 0 10 8" refX="8" refY="4" markerWidth="5" markerHeight="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8" fill="none" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arr-a" viewBox="0 0 10 8" refX="8" refY="4" markerWidth="5" markerHeight="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+
+    <!-- Lane header gradients -->
+    <linearGradient id="lg-title" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#64748b"/>
+    </linearGradient>
+
+    <!-- Node glass background gradients -->
+    <linearGradient id="node-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="node-bg-amber" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="node-bg-emerald" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#34d399" stop-opacity="0.04"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===== BACKGROUND ===== -->
+  <rect width="1140" height="520" fill="#090a0e"/>
+  <rect width="1140" height="520" fill="url(#grid)"/>
+  <!-- Subtle top glow -->
+  <ellipse cx="570" cy="0" rx="500" ry="200" fill="#3b82f6" opacity="0.04"/>
+
+  <!-- ===== LANE 1: Task Sources ===== -->
+  <rect x="0" y="18" width="1140" height="90" fill="#12110f" rx="0"/>
+  <rect x="0" y="18" width="4" height="90" fill="#c9953b" rx="2" opacity="0.7"/>
+  <text x="24" y="63" transform="rotate(-90, 24, 63)" font-size="10" font-weight="700" fill="#c9953b" letter-spacing="2" text-anchor="middle" opacity="0.8">TASK SOURCES</text>
+
+  <!-- Row 1 Nodes -->
+  <rect x="60" y="43" width="210" height="40" rx="8" fill="url(#node-bg)" stroke="rgba(201,149,59,0.35)" stroke-width="1"/>
+  <text x="165" y="68" font-size="13" fill="#d4c5a0" text-anchor="middle" font-weight="400">📋 backlog task (local · GitHub · Mello)</text>
+
+  <rect x="950" y="43" width="130" height="40" rx="8" fill="url(#node-bg)" stroke="rgba(201,149,59,0.35)" stroke-width="1"/>
+  <text x="1015" y="68" font-size="13" fill="#d4c5a0" text-anchor="middle" font-weight="400">✓ done</text>
+
+  <!-- ===== LANE 2: Developer ===== -->
+  <rect x="0" y="118" width="1140" height="240" fill="#0f131f" rx="0"/>
+  <rect x="0" y="118" width="4" height="240" fill="#3b82f6" rx="2" opacity="0.7"/>
+  <text x="24" y="238" transform="rotate(-90, 24, 238)" font-size="10" font-weight="700" fill="#3b82f6" letter-spacing="2" text-anchor="middle" opacity="0.8">DEVELOPER</text>
+
+  <!-- Row 2 Nodes -->
+  <circle cx="110" cy="235" r="50" fill="url(#rg-blue)"/>
+  <rect x="60" y="213" width="100" height="44" rx="10" fill="url(#node-bg)" stroke="rgba(59,130,246,0.4)" stroke-width="1"/>
+  <text x="110" y="240" font-size="13" fill="#93c5fd" text-anchor="middle" font-weight="500">🚀 propose</text>
+
+  <rect x="180" y="213" width="80" height="44" rx="10" fill="url(#node-bg)" stroke="rgba(59,130,246,0.4)" stroke-width="1"/>
+  <text x="220" y="240" font-size="13" fill="#93c5fd" text-anchor="middle" font-weight="500">📝 spec</text>
+
+  <rect x="280" y="213" width="90" height="44" rx="10" fill="url(#node-bg)" stroke="rgba(59,130,246,0.4)" stroke-width="1"/>
+  <text x="325" y="240" font-size="13" fill="#93c5fd" text-anchor="middle" font-weight="500">🔀 spec-pr</text>
+
+  <rect x="430" y="213" width="100" height="44" rx="10" fill="url(#node-bg)" stroke="rgba(59,130,246,0.4)" stroke-width="1"/>
+  <text x="480" y="240" font-size="13" fill="#93c5fd" text-anchor="middle" font-weight="500">📋 ship-plan</text>
+
+  <!-- Gate node -->
+  <circle cx="612" cy="235" r="56" fill="url(#rg-amber)"/>
+  <rect x="550" y="208" width="125" height="54" rx="10" fill="url(#node-bg-amber)" stroke="#f59e0b" stroke-width="1" filter="url(#glow-amber)"/>
+  <text x="612" y="231" font-size="13" fill="#fbbf24" text-anchor="middle" font-weight="600">⚙️ ship-code</text>
+  <text x="612" y="250" font-size="10" fill="#d97706" text-anchor="middle">test · lint · types</text>
+
+  <rect x="695" y="213" width="90" height="44" rx="10" fill="url(#node-bg)" stroke="rgba(59,130,246,0.4)" stroke-width="1"/>
+  <text x="740" y="240" font-size="13" fill="#93c5fd" text-anchor="middle" font-weight="500">🔀 ship-pr</text>
+
+  <rect x="830" y="213" width="120" height="44" rx="10" fill="url(#node-bg)" stroke="rgba(59,130,246,0.4)" stroke-width="1"/>
+  <text x="890" y="240" font-size="13" fill="#93c5fd" text-anchor="middle" font-weight="500">💬 address-review</text>
+
+  <!-- ===== LANE 3: Reviewer ===== -->
+  <rect x="0" y="378" width="1140" height="85" fill="#130f1c" rx="0"/>
+  <rect x="0" y="378" width="4" height="85" fill="#8b5cf6" rx="2" opacity="0.7"/>
+  <text x="24" y="420" transform="rotate(-90, 24, 420)" font-size="10" font-weight="700" fill="#8b5cf6" letter-spacing="2" text-anchor="middle" opacity="0.8">REVIEWER</text>
+
+  <!-- Row 3 Nodes -->
+  <circle cx="350" cy="420" r="42" fill="url(#rg-purple)"/>
+  <rect x="280" y="398" width="140" height="44" rx="10" fill="url(#node-bg)" stroke="rgba(139,92,246,0.4)" stroke-width="1"/>
+  <text x="350" y="425" font-size="13" fill="#c4b5fd" text-anchor="middle" font-weight="500">👀 review SPEC PR</text>
+
+  <circle cx="510" cy="420" r="42" fill="url(#rg-emerald)"/>
+  <rect x="440" y="398" width="140" height="44" rx="10" fill="url(#node-bg-emerald)" stroke="#34d399" stroke-width="1" filter="url(#glow-emerald)"/>
+  <text x="510" y="425" font-size="13" fill="#6ee7b7" text-anchor="middle" font-weight="600">✅ merge SPEC PR</text>
+
+  <circle cx="767" cy="420" r="42" fill="url(#rg-purple)"/>
+  <rect x="695" y="398" width="145" height="44" rx="10" fill="url(#node-bg)" stroke="rgba(139,92,246,0.4)" stroke-width="1"/>
+  <text x="767" y="425" font-size="13" fill="#c4b5fd" text-anchor="middle" font-weight="500">👀 review CODE PR</text>
+
+  <circle cx="975" cy="420" r="42" fill="url(#rg-emerald)"/>
+  <rect x="900" y="398" width="150" height="44" rx="10" fill="url(#node-bg-emerald)" stroke="#34d399" stroke-width="1" filter="url(#glow-emerald)"/>
+  <text x="975" y="425" font-size="13" fill="#6ee7b7" text-anchor="middle" font-weight="600">✅ merge CODE PR</text>
+
+  <!-- ===== CONNECTORS ===== -->
+
+  <!-- 1. backlog → propose -->
+  <path d="M 165,83 C 165,145 110,145 110,208" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="110" cy="208" r="2.5" fill="#4a5568"/>
+
+  <!-- 2. propose → spec -->
+  <path d="M 160,235 L 175,235" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 3. spec → spec-pr -->
+  <path d="M 260,235 L 275,235" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 4. spec-pr → review SPEC PR -->
+  <path d="M 325,257 C 325,327 350,327 350,393" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="350" cy="393" r="2.5" fill="#4a5568"/>
+  <rect x="328" y="318" width="56" height="18" rx="9" fill="#1e293b" stroke="#334155" stroke-width="0.5"/>
+  <text x="356" y="331" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="500">📄 SPEC PR</text>
+
+  <!-- 5. review SPEC PR → merge SPEC PR -->
+  <path d="M 420,420 L 435,420" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 6. merge SPEC PR → ship-plan -->
+  <path d="M 510,398 C 510,345 480,345 480,262" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="480" cy="262" r="2.5" fill="#4a5568"/>
+  <rect x="488" y="336" width="44" height="18" rx="9" fill="#1e293b" stroke="#334155" stroke-width="0.5"/>
+  <text x="510" y="349" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="500">✅ merged</text>
+
+  <!-- 7. ship-plan → ship-code -->
+  <path d="M 530,235 L 545,235" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 8. ship-code → ship-pr -->
+  <path d="M 675,235 L 690,235" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 9. ship-pr → review CODE PR -->
+  <path d="M 740,257 C 740,327 767,327 767,393" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="767" cy="393" r="2.5" fill="#4a5568"/>
+  <rect x="744" y="318" width="58" height="18" rx="9" fill="#1e293b" stroke="#334155" stroke-width="0.5"/>
+  <text x="773" y="331" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="500">📄 CODE PR</text>
+
+  <!-- 10. review CODE PR → address-review (changes loop) -->
+  <path d="M 767,442 C 767,485 890,485 890,262" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-a)"/>
+  <circle cx="890" cy="262" r="2.5" fill="#f59e0b"/>
+  <rect x="817" y="476" width="52" height="18" rx="9" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.3)" stroke-width="0.5"/>
+  <text x="843" y="489" font-size="9.5" fill="#f59e0b" text-anchor="middle" font-weight="500">✏️ changes</text>
+
+  <!-- 11. address-review → ship-code (loop back) -->
+  <path d="M 830,213 C 805,190 675,190 675,208" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-a)"/>
+  <rect x="740" y="188" width="48" height="18" rx="9" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.3)" stroke-width="0.5"/>
+  <text x="764" y="201" font-size="9.5" fill="#f59e0b" text-anchor="middle" font-weight="500">🔄 re-ship</text>
+
+  <!-- 12. review CODE PR → merge CODE PR (approved) -->
+  <path d="M 840,420 L 895,420" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#arr-g)"/>
+  <rect x="865" y="408" width="52" height="18" rx="9" fill="rgba(52,211,153,0.12)" stroke="rgba(52,211,153,0.3)" stroke-width="0.5"/>
+  <text x="891" y="421" font-size="9.5" fill="#34d399" text-anchor="middle" font-weight="500">👍 approved</text>
+
+  <!-- 13. merge CODE PR → done -->
+  <path d="M 975,398 C 975,345 1015,345 1015,88" fill="none" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="1015" cy="88" r="2.5" fill="#4a5568"/>
+
+</svg>

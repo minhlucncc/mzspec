@@ -1,6 +1,7 @@
 ---
 name: code-simplification
 description: Simplifies code for clarity (MeKnow-adapted, polyglot + OpenSpec). Use when refactoring code for clarity without changing behavior in this repo. Use when code works but is harder to read, maintain, or extend than it should be. Use when reviewing code that has accumulated unnecessary complexity. Every change keeps the resolver-selected gates (uv/go/pnpm) green and respects the repo's invariants.
+tags: []
 ---
 
 # Code Simplification

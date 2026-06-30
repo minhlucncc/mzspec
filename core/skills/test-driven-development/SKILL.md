@@ -1,6 +1,7 @@
 ---
 name: test-driven-development
 description: Drives development with tests (polyglot + OpenSpec). Use when implementing any logic, fixing any bug, or changing any behavior. Use when you need to prove that code works, when a bug report arrives, or when you're about to modify existing functionality. Red-Green-Refactor with language-appropriate tests, the resolver-selected gates, and the `/opsx:ship` Test(Red) phase. Project specifics (test commands, file patterns, fixtures, invariants) come from `mzspec.config.json` and the project's `tdd` template.
+tags: [test]
 ---
 
 # Test-Driven Development

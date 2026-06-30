@@ -147,6 +147,7 @@ const PREFLIGHT = {
         type: 'object', additionalProperties: false, required: ['pair', 'title', 'test', 'code', 'allDone'],
         properties: {
           pair: { type: 'string', description: 'unit id, e.g. "01"' }, title: { type: 'string' },
+          tags: { type: 'array', items: { type: 'string' }, description: 'unit tags inherited from covered tasks, e.g. ["ui", "backend"]. Drives skill/hook loading during implementation.' },
           coversTasks: { type: 'array', items: { type: 'string' }, description: 'tasks.md ordinals this unit realizes' },
           test: TASKREF, code: TASKREF,
           allDone: { type: 'boolean', description: 'unit already done (skip unless retryBlocked/only)' },
@@ -349,7 +350,7 @@ const pre = await agent(
     `1. TOOLCHAIN + TOOLS (polyglot): test -f .claude/workflows/lib/openspec.js && command -v uv go pnpm node. Resolve which toolchains this change actually needs: \`git diff --name-only ${base}...HEAD | node .claude/workflows/lib/gate-resolver.js --stdin --json\` → its "toolchains" array. Only the tools for those toolchains are required (py→uv, go→go 1.${REQUIRED_GO_MINOR}+, ts→pnpm; openspec.js + node always). For go, run \`go version\`; if < 1.${REQUIRED_GO_MINOR}, look for a newer one via \`which -a go\` / \`ls /opt/homebrew/Cellar/go@*/bin/go\` and export PATH; if a needed tool is missing entirely set toolchainOk=false+ok=false+reason (e.g. "go >= 1.${REQUIRED_GO_MINOR} not found; brew install go") and STOP.`,
     `   - Capture the resolved toolchains + versions; set toolchainOk=true when every NEEDED tool is present.`,
     `   - gh is OPTIONAL — only required when args.local is false (the local path never calls gh).`,
-    `2. Load the handoff: read "${handoffDir}/plan.json". If it does not exist, set ok=false, reason="no handoff — run /opsx:ship-plan ${change} first" and STOP. It contains a "units" array (a FEW test-first work-units). Map EACH unit to one entry in the returned pairs array (one Red→Green→commit per unit), ordered by ascending id: pair=unit.id; title=unit.title; coversTasks=unit.coversTasks; allDone=(unit.status=="done"); file (for both test and code) = "${handoffDir}/tasks/<unit.id>-<unit.slug>.md"; test={id:unit.id, role:"test", status:unit.status, file, deliverables:unit.testDeliverables, verify:unit.verify, skipRed:unit.skipRed}; code={id:unit.id, role:"code", status:unit.status, file, deliverables:unit.codeDeliverables, verify:unit.verify}. (Legacy fallback: if plan.json has the old "tasks" array instead of "units", group tasks into pairs by their "pair" field and set deliverables=[task.deliverable].)`,
+    `2. Load the handoff: read "${handoffDir}/plan.json". If it does not exist, set ok=false, reason="no handoff — run /opsx:ship-plan ${change} first" and STOP. It contains a "units" array (a FEW test-first work-units). Map EACH unit to one entry in the returned pairs array (one Red→Green→commit per unit), ordered by ascending id: pair=unit.id; title=unit.title; coversTasks=unit.coversTasks; tags=unit.tags||[]; allDone=(unit.status=="done"); file (for both test and code) = "${handoffDir}/tasks/<unit.id>-<unit.slug>.md"; test={id:unit.id, role:"test", status:unit.status, file, deliverables:unit.testDeliverables, verify:unit.verify, skipRed:unit.skipRed}; code={id:unit.id, role:"code", status:unit.status, file, deliverables:unit.codeDeliverables, verify:unit.verify}. (Legacy fallback: if plan.json has the old "tasks" array instead of "units", group tasks into pairs by their "pair" field and set deliverables=[task.deliverable].)`,
     `3. node .claude/workflows/lib/openspec.js status --change "${change}" --json — capture changeRoot, proposal/tasks paths, delta-spec paths, title. node .claude/workflows/lib/openspec.js list --json — capture isActive (change present in active list) and isArchived (change present in archive list).`,
     `4. node .claude/workflows/lib/openspec.js validate "${change}" --strict (fallback non-strict) — MUST pass else ok=false+reason+STOP.`,
     `5. WORKING-TREE HYGIENE: git status --porcelain. ${handoffDir}/ is gitignored and does not count. Two cases:`,
@@ -574,6 +575,7 @@ if (!worktreeDidImplement) {
       [
         `Unit ${p.pair} of change "${change}" — the RED step. ${await getPromptHooks('on-test', { change }).then(h => h.join(' '))}`,
         CONTEXT,
+        `TAGS: ${(p.tags || []).join(", ") || "(none)"}. Consult .claude/skills/tag-system/SKILL.md for tag→skill mapping.`,
         TOOLCHAIN_NOTE,
         `Read the unit file "${p.test.file}" (its "Test plan (Red)" section). Write ALL of this unit's test deliverables — ${testFiles} — in the deliverables' own language: pytest \`tests/test_*.py\` for Python members, table-driven \`*_test.go\` for Go modules, vitest \`*.test.ts(x)\` for the portal — with the assertions/table cases the unit specifies (drawn from the delta-spec scenarios).`,
         p.test.skipRed
@@ -593,6 +595,7 @@ if (!worktreeDidImplement) {
       [
         `Unit ${p.pair} of change "${change}" — the GREEN step + commit. ${await getPromptHooks('on-implement', { change }).then(h => h.join(' '))}`,
         CONTEXT,
+        `TAGS: ${(p.tags || []).join(", ") || "(none)"}. Consult .claude/skills/tag-system/SKILL.md for tag→skill mapping.`,
         TOOLCHAIN_NOTE,
         `Read the unit file "${p.code.file}" (its "Code plan (Green)" section). Make the MINIMAL production change across this unit's code deliverables — ${codeFiles} — to turn the failing test(s) from the Red step GREEN. Do not over-build.`,
         red.skipRed ? `(No Red test — implement the doc/config change described.)` : `Run the touched package's test command (py: \`uv --directory <member> run python -m pytest -q\`; go: \`(cd <module> && go test -race ./...)\`; ts: \`(cd apps/portal && pnpm test)\`) — they MUST pass. Iterate up to ${maxRepairs} times if needed (fix production code, not the tests). If still failing, set greenConfirmed=false and put the output in failureLog (do not commit).`,

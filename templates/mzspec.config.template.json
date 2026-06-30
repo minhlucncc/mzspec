@@ -39,5 +39,15 @@
   "gatesDir": "gates",
   "templatesDir": "openspec/templates",
   "customGates": [],
-  "invariants": []
+  "invariants": [],
+  "tags": {
+    "categories": {
+      "ui": { "paths": ["apps/portal/", "apps/web/", "src/components/"] },
+      "backend": { "paths": ["packages/", "apps/api/", "src/lib/"] },
+      "db": { "paths": ["migrations/", "prisma/", "src/db/"] },
+      "docs": { "paths": ["docs/", "wiki/"] },
+      "infra": { "paths": [".github/", "infra/", "ci/"] },
+      "test": { "paths": ["tests/", "__tests__/", "spec/"] }
+    }
+  }
 }

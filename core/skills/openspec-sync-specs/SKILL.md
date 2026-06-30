@@ -1,3 +1,9 @@
+---
+name: openspec-sync-specs
+description: Merges a change's delta specs into the canonical openspec/specs/ tree. Idempotent — re-running is a no-op.
+tags: []
+---
+
 # Openspec Sync Specs
 
 Merges a change's delta specs into the canonical `openspec/specs/` tree.

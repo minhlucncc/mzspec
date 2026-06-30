@@ -1,6 +1,7 @@
 ---
 name: ci-cd-and-automation
 description: Automates CI/CD pipeline setup, adapted for the Mezon Mentor Bot ("MeKnow") platform. Use when setting up or modifying build and deployment pipelines, the GitHub Actions workflow (.github/workflows/rag-engine.yml), quality gates, or the /opsx:ship verify step. Use when configuring the polyglot test runner (Python/uv, Go, TS/pnpm) with a pgvector service container or debugging CI failures.
+tags: [infra]
 ---
 
 # CI/CD and Automation

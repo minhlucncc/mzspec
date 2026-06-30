@@ -1,6 +1,7 @@
 ---
 name: planning-and-task-breakdown
 description: Breaks work into ordered tasks (MeKnow-adapted onto OpenSpec). Use when you have an OpenSpec proposal or clear requirements and need to fill the change's design.md and tasks.md with implementable, verifiable units. Use when a task feels too large to start, when you need to estimate scope, or when parallel work is possible.
+tags: []
 ---
 
 # Planning and Task Breakdown
@@ -114,7 +115,13 @@ Each task in `tasks.md` follows this structure. State the unit's **toolchain** s
 
 ### Step 4b: UI Tasks
 
-When the change has a `ui.md` (i.e., a user-facing surface), each UI task should reference the relevant `ui.md` sections and enumerate all UI states:
+When the change has a `ui.md` (i.e., a user-facing surface), first read the project's
+existing design documentation — `openspec/patterns/ux-patterns.md`, `DESIGN.md`, or
+design skills — to understand the UX patterns and visual concepts the implementation
+must follow. This ensures tasks reference real project conventions, not invented values.
+
+Each UI task should reference the relevant `ui.md` sections and enumerate all UI states,
+plus the project's UX patterns to follow:
 
 ```markdown
 ## Task [N]: SearchResultList component with all states (toolchain: ts)
@@ -122,16 +129,26 @@ When the change has a `ui.md` (i.e., a user-facing surface), each UI task should
 **Description:** Build the SearchResultList component with loading skeleton,
 empty-state message, error state with retry, and populated card list.
 Follow ui.md → Component Tree for the hierarchy and ui.md → UI States for
-the behavior of each state.
+the behavior of each state. Follow the project's established UX patterns for
+loading (skeleton), empty state (illustration + message + CTA), and error
+display (inline error + retry).
+
+**Follow these UX patterns from the project (see DESIGN.md / ux-patterns.md):**
+- Loading pattern: skeleton screens, not spinners
+- Empty state pattern: illustration + message + suggested action
+- Error pattern: inline error box with retry button
+- Data display pattern: card grid with slide-in detail panel
+- Responsive pattern: 3-col → 2-col → 1-col at project breakpoints
 
 **Acceptance criteria:**
-- [ ] Loading: shimmer/skeleton renders while data is being fetched
-- [ ] Empty: "No results found" message with suggestion text
-- [ ] Error: error message + RetryButton on fetch failure
+- [ ] Loading: skeleton renders while data is being fetched (per project loading pattern)
+- [ ] Empty: "No results found" with illustration + suggested action (per project empty state pattern)
+- [ ] Error: error message + RetryButton on fetch failure (per project error pattern)
 - [ ] Populated: renders ResultCard for each result item
 - [ ] Edge: handles 0, 1, and 1000+ results without layout breakage
-- [ ] Responsive: layout adapts at breakpoints specified in ui.md
+- [ ] Responsive: layout adapts at breakpoints specified in ui.md (per project responsive pattern)
 - [ ] Accessibility: keyboard navigation + ARIA labels per ui.md
+- [ ] Style: uses project's established card pattern (spacing, typography, border radius)
 ```
 
 ### Step 5: Order and Checkpoint
@@ -237,7 +254,8 @@ Before starting implementation, confirm:
 - [ ] No task touches more than ~5 files or spans more than one toolchain
 - [ ] Checkpoints exist between major phases
 - [ ] `design.md` records the architectural decisions and risks
-- [ ] `ui.md` exists and covers UI states (loading/empty/error/populated/edge cases) for user-facing changes
+- [ ] `ui.md` exists and covers UX pattern references, abstract business flow, and UI states for user-facing changes
+- [ ] UI tasks reference the project's UX patterns and visual concepts from DESIGN.md / ux-patterns.md
 - [ ] The human has reviewed and approved the plan
 
 ## MeKnow notes
